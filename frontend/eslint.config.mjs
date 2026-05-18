@@ -99,7 +99,9 @@ const eslintConfig = defineConfig([
               allow: {
                 to: [
                   {
-                    captured: { elementName: "{{ from.captured.elementName }}" },
+                    captured: {
+                      elementName: "{{ from.captured.elementName }}",
+                    },
                     type: "feature",
                   },
                   { type: "shared" },
@@ -124,19 +126,22 @@ const eslintConfig = defineConfig([
       ...boundaries.configs.recommended.settings,
       "boundaries/elements": [
         { mode: "file", pattern: "src/app/**", type: "app" },
-        { capture: ["elementName"], pattern: "src/features/*", type: "feature" },
+        {
+          capture: ["elementName"],
+          pattern: "src/features/*",
+          type: "feature",
+        },
         { pattern: "src/test/**", type: "test" },
-        { capture: ["elementName"], pattern: "src/!(app|features)", type: "shared" },
+        {
+          capture: ["elementName"],
+          pattern: "src/!(app|features)",
+          type: "shared",
+        },
       ],
     },
   },
   prettier,
-  globalIgnores([
-    ".next/**",
-    "out/**",
-    "build/**",
-    "next-env.d.ts",
-  ]),
+  globalIgnores([".next/**", "out/**", "build/**", "next-env.d.ts"]),
 ]);
 
 export default eslintConfig;

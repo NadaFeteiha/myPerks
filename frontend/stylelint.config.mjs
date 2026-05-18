@@ -15,6 +15,7 @@ export default {
           "utility",
           "source",
           "plugin",
+          "custom-variant",
         ],
       },
     ],

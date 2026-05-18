@@ -32,7 +32,7 @@ def run_migrations_offline() -> None:
         context.run_migrations()
 
 
-def do_run_migrations(connection):
+def do_run_migrations(connection: object) -> None:
     context.configure(
         compare_type=True,
         connection=connection,
