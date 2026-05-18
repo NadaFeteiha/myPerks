@@ -1,0 +1,17 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "ignoreDependencies": [
+    "tailwindcss",
+    "@tailwindcss/postcss",
+    "postcss",
+    "tw-animate-css",
+    "stylelint-config-standard",
+    "commitlint-plugin-tense",
+    "babel-plugin-react-compiler",
+    "eslint-plugin-github-action",
+    "@eslint/markdown",
+    "vitest-axe",
+    "@testing-library/jest-dom",
+    "@tailwindcss/typography"
+  ]
+}
