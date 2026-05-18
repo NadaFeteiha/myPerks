@@ -1,5 +1,6 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
+  "ignore": ["src/test/**", "src/lib/cn.ts"],
   "ignoreDependencies": [
     "tailwindcss",
     "@tailwindcss/postcss",
@@ -12,6 +13,16 @@
     "@eslint/markdown",
     "vitest-axe",
     "@testing-library/jest-dom",
-    "@tailwindcss/typography"
+    "@tailwindcss/typography",
+    "@uploadthing/react",
+    "ai",
+    "class-variance-authority",
+    "clsx",
+    "dotenv",
+    "lucide-react",
+    "recharts",
+    "tailwind-merge",
+    "uploadthing",
+    "zod"
   ]
 }

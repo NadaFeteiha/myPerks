@@ -1,12 +1,16 @@
 import type { NextConfig } from "next";
 
 import { withSentryConfig } from "@sentry/nextjs";
+import path from "path";
 
 const nextConfig: NextConfig = {
   experimental: {
     authInterrupts: true,
   },
   reactCompiler: true,
+  turbopack: {
+    root: path.resolve(__dirname),
+  },
 };
 
 const sentryOrg = process.env.SENTRY_ORG;
