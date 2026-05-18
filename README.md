@@ -1,7 +1,7 @@
 # MyPerks
 
 > AI-Powered Employee Benefits & HR Assistant  
-> Stack: Next.js 14 · FastAPI · LangGraph · RAG · PostgreSQL + pgvector
+> Stack: Next.js 16 · FastAPI · LangGraph · RAG · PostgreSQL + pgvector
 
 ---
 
@@ -21,7 +21,7 @@ Employees ask questions in plain language and get instant, accurate answers grou
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│  Next.js 14 (Vercel)          FastAPI (Render)           │
+│  Next.js 16 (Vercel)          FastAPI (Render)           │
 │  ─────────────────            ──────────────────         │
 │  Clerk auth                   LangGraph agent            │
 │  Dashboard (REST)    ◄──────► Router → RAG + DB nodes    │
@@ -42,9 +42,9 @@ Employees ask questions in plain language and get instant, accurate answers grou
 
 ```
 myperks/
-├── frontend/          Next.js 14 app (Vercel)
+├── frontend/          Next.js 16 app (Vercel)
 ├── backend/           FastAPI + LangGraph (Render)
-├── docs/decisions/    Architecture Decision Records
+├── docs/              Deployment guide + Architecture Decision Records
 └── .github/workflows/ CI for both
 ```
 
@@ -110,7 +110,7 @@ Backend API docs: http://localhost:8000/docs
 
 | Layer | Technology |
 |-------|-----------|
-| Frontend | Next.js 14 (App Router), Tailwind CSS, shadcn/ui, Recharts |
+| Frontend | Next.js 16 (App Router), Tailwind CSS, shadcn/ui, Recharts |
 | Auth | Clerk |
 | Upload | UploadThing |
 | Streaming | Vercel AI SDK + SSE |
