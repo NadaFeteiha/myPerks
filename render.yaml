@@ -2,13 +2,15 @@ services:
   - type: web
     name: myperks-backend
     runtime: python
+    plan: free
+    rootDir: backend
     buildCommand: pip install -r requirements.txt && alembic upgrade head
     startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
     envVars:
+      # Set this to your Neon connection string (postgresql+asyncpg://...)
+      # Get it from: neon.tech → your project → Connection Details
       - key: DATABASE_URL
-        fromDatabase:
-          name: myperks-db
-          property: connectionString
+        sync: false
       - key: ANTHROPIC_API_KEY
         sync: false
       - key: OPENAI_API_KEY
@@ -17,11 +19,6 @@ services:
         sync: false
       - key: CLERK_JWKS_URL
         sync: false
+      # Set to your Vercel frontend URL, e.g. https://myperks.vercel.app
       - key: ALLOWED_ORIGINS
         sync: false
-
-databases:
-  - name: myperks-db
-    databaseName: myperks
-    user: myperks
-    plan: free

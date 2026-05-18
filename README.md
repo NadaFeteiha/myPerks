@@ -106,24 +106,6 @@ Backend API docs: http://localhost:8000/docs
 
 ---
 
-## Team
-
-| Person | Owns |
-|--------|------|
-| 1 | RAG pipeline — `backend/rag/` |
-| 2 | LangGraph agent — `backend/graph/` |
-| 3 | FastAPI + DB — `backend/db/`, `backend/api/`, Alembic |
-| 4 | Next.js frontend — `frontend/src/` |
-
----
-
-## Deploy
-
-- **Frontend** → Vercel: connect GitHub repo, set `Root Directory = frontend`, add env vars
-- **Backend** → Render: uses `backend/render.yaml`, add env vars in Render dashboard
-
----
-
 ## Tech stack
 
 | Layer | Technology |

@@ -60,3 +60,4 @@ coverage/
 .vercel
 *.pem
 .husky/_/
+.claude/
