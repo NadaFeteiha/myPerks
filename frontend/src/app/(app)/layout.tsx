@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+
 import { LeftNav } from "@/components/layout/left-nav";
 import { TopBar } from "@/components/layout/top-bar";
 import { useAuth } from "@/contexts/auth-context";
@@ -25,7 +26,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
   }
 
   return (
-    <div className="flex h-screen flex-col bg-white">
+    <div className="flex h-screen flex-col bg-background">
       <TopBar />
       <div className="flex min-h-0 flex-1">
         <LeftNav />

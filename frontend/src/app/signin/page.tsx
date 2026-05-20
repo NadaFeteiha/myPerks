@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
+
 import { useAuth } from "@/contexts/auth-context";
 
 export default function SignInPage() {
@@ -26,7 +27,7 @@ export default function SignInPage() {
         await login(email, password);
       }
       router.push("/dashboard");
-    } catch (err) {
+    } catch (_err) {
       setError("Authentication failed. Please try again.");
     } finally {
       setIsLoading(false);
@@ -45,60 +46,60 @@ export default function SignInPage() {
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form className="space-y-4" onSubmit={handleSubmit}>
           {isSignUp && (
             <div>
               <label
-                htmlFor="name"
                 className="mb-1.5 block text-sm font-medium text-foreground"
+                htmlFor="name"
               >
                 Name
               </label>
               <input
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-brand-purple-500 focus:outline-none focus:ring-1 focus:ring-brand-purple-500"
                 id="name"
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Enter your name"
+                required
                 type="text"
                 value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-brand-purple-500 focus:outline-none focus:ring-1 focus:ring-brand-purple-500"
-                placeholder="Enter your name"
               />
             </div>
           )}
 
           <div>
             <label
-              htmlFor="email"
               className="mb-1.5 block text-sm font-medium text-foreground"
+              htmlFor="email"
             >
               Email
             </label>
             <input
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-brand-purple-500 focus:outline-none focus:ring-1 focus:ring-brand-purple-500"
               id="email"
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Enter your email"
+              required
               type="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-brand-purple-500 focus:outline-none focus:ring-1 focus:ring-brand-purple-500"
-              placeholder="Enter your email"
             />
           </div>
 
           <div>
             <label
-              htmlFor="password"
               className="mb-1.5 block text-sm font-medium text-foreground"
+              htmlFor="password"
             >
               Password
             </label>
             <input
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-brand-purple-500 focus:outline-none focus:ring-1 focus:ring-brand-purple-500"
               id="password"
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Enter your password"
+              required
               type="password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-brand-purple-500 focus:outline-none focus:ring-1 focus:ring-brand-purple-500"
-              placeholder="Enter your password"
             />
           </div>
 
@@ -107,9 +108,9 @@ export default function SignInPage() {
           )}
 
           <button
-            type="submit"
-            disabled={isLoading}
             className="w-full rounded-lg bg-brand-purple-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-purple-700 disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={isLoading}
+            type="submit"
           >
             {isLoading ? "Loading..." : isSignUp ? "Sign Up" : "Sign In"}
           </button>
@@ -117,12 +118,12 @@ export default function SignInPage() {
 
         <div className="mt-4 text-center">
           <button
-            type="button"
+            className="text-sm text-muted-foreground hover:text-brand-purple-600"
             onClick={() => {
               setIsSignUp(!isSignUp);
               setError("");
             }}
-            className="text-sm text-muted-foreground hover:text-brand-purple-600"
+            type="button"
           >
             {isSignUp
               ? "Already have an account? Sign in"

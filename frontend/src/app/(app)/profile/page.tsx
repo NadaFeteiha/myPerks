@@ -1,12 +1,13 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { LogOut, User } from "lucide-react";
+import { useRouter } from "next/navigation";
+
 import { useAuth } from "@/contexts/auth-context";
 
 export default function ProfilePage() {
   const router = useRouter();
-  const { user, logout } = useAuth();
+  const { logout, user } = useAuth();
 
   const handleLogout = () => {
     logout();
@@ -46,8 +47,9 @@ export default function ProfilePage() {
           </div>
 
           <button
-            onClick={handleLogout}
             className="mt-6 flex w-full items-center justify-center gap-2 rounded-lg bg-brand-purple-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-purple-700"
+            onClick={handleLogout}
+            type="button"
           >
             <LogOut className="h-4 w-4" />
             Logout

@@ -7,7 +7,7 @@ type BalanceCardProps = {
   progressColor: string;
   sub: string;
   unit: string;
-  value: string | number;
+  value: number | string;
 };
 
 export function BalanceCard({
@@ -20,7 +20,7 @@ export function BalanceCard({
   value,
 }: BalanceCardProps) {
   return (
-    <div className="rounded-xl border border-border bg-white p-4">
+    <div className="rounded-xl border border-border bg-white p-4 dark:bg-card">
       <div className="mb-2.5 flex items-center justify-between">
         <span className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
           {label}

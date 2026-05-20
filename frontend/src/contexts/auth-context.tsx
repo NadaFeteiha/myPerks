@@ -1,57 +1,50 @@
 "use client";
 
-import { createContext, useContext, useState, ReactNode } from "react";
-
-type User = {
-  name: string;
-  email: string;
-  role: string;
-  initials: string;
-};
+import { createContext, type ReactNode, useContext, useState } from "react";
 
 type AuthContextType = {
-  user: User | null;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
-  signup: (name: string, email: string, password: string) => Promise<void>;
   logout: () => void;
+  signup: (name: string, email: string, password: string) => Promise<void>;
+  user: null | User;
+};
+
+type User = {
+  email: string;
+  initials: string;
+  name: string;
+  role: string;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<null | User>(null);
 
-  const login = async (email: string, password: string) => {
-    // TODO: Replace with actual API call
-    // For MVP, simulate login with hardcoded user
+  const login = async (email: string, _password: string) => {
     await new Promise((resolve) => setTimeout(resolve, 500));
-    
     setUser({
-      name: "Sarah Miller",
-      email: email,
-      role: "Engineering",
+      email,
       initials: "SM",
+      name: "Sarah Miller",
+      role: "Engineering",
     });
   };
 
-  const signup = async (name: string, email: string, password: string) => {
-    // TODO: Replace with actual API call
-    // For MVP, simulate signup
+  const signup = async (name: string, email: string, _password: string) => {
     await new Promise((resolve) => setTimeout(resolve, 500));
-    
     const initials = name
       .split(" ")
       .map((n) => n[0])
       .join("")
       .toUpperCase()
       .slice(0, 2);
-    
     setUser({
-      name,
       email,
-      role: "Engineering",
       initials,
+      name,
+      role: "Engineering",
     });
   };
 
@@ -62,11 +55,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return (
     <AuthContext.Provider
       value={{
-        user,
         isAuthenticated: !!user,
         login,
-        signup,
         logout,
+        signup,
+        user,
       }}
     >
       {children}

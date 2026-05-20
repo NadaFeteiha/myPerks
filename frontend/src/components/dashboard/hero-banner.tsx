@@ -1,19 +1,3 @@
-import { Clock, Leaf, Plane } from "lucide-react";
-
-type ChipProps = {
-  icon: React.ReactNode;
-  label: string;
-};
-
-function Chip({ icon, label }: ChipProps) {
-  return (
-    <span className="flex items-center gap-1 rounded-full border border-white/20 bg-white/[0.12] px-2.5 py-1 text-[11px] font-medium text-white/90">
-      {icon}
-      {label}
-    </span>
-  );
-}
-
 export function HeroBanner() {
   return (
     <div

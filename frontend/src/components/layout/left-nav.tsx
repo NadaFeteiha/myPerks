@@ -1,9 +1,9 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { FileText, History, LayoutDashboard, MessageCircle, Upload } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { FileText, History, LayoutDashboard, MessageCircle, Upload } from "lucide-react";
+import { useRef } from "react";
 
 import { cn } from "@/lib/cn";
 
@@ -11,7 +11,6 @@ type NavItem = {
   href: string;
   icon: React.ElementType;
   label: string;
-  badge?: number;
 };
 
 const NAV_ITEMS: NavItem[] = [
@@ -44,7 +43,6 @@ export function LeftNav() {
     const file = event.target.files?.[0];
     if (file) {
       console.log("Selected file:", file.name);
-      // TODO: Handle file upload logic here
     }
   };
 
@@ -54,20 +52,15 @@ export function LeftNav() {
         const isActive = pathname.startsWith(item.href);
         return (
           <Link
-            key={item.href}
-            href={item.href}
             className={cn(
               "flex items-center gap-2 rounded-lg px-2.5 py-[7px] text-[13px] text-muted-foreground transition-colors hover:bg-brand-purple-50 hover:text-brand-purple-800 dark:hover:bg-brand-purple-900/30 dark:hover:text-brand-purple-300",
               isActive && "bg-brand-purple-50 font-medium text-brand-purple-800 dark:bg-brand-purple-900/30 dark:text-brand-purple-300",
             )}
+            href={item.href}
+            key={item.href}
           >
             <item.icon className="h-[15px] w-[15px] shrink-0" />
             {item.label}
-            {item.badge !== undefined && (
-              <span className="ml-auto rounded-full bg-brand-purple-600 px-1.5 py-px text-[10px] font-semibold text-white">
-                {item.badge}
-              </span>
-            )}
           </Link>
         );
       })}
@@ -85,19 +78,19 @@ export function LeftNav() {
           <p className="text-[11px] text-muted-foreground">Drop a policy file here</p>
           <p className="text-[10px] text-muted-foreground/60">.txt or .md · MVP</p>
           <input
+            accept=".txt,.md"
+            className="hidden"
+            onChange={handleFileChange}
             ref={fileInputRef}
             type="file"
-            accept=".txt,.md"
-            onChange={handleFileChange}
-            className="hidden"
           />
         </div>
 
         <div className="flex flex-col gap-1.5">
           {POLICY_FILES.map((file) => (
             <div
-              key={file.id}
               className="flex items-start gap-2 rounded-lg border border-border bg-background px-2.5 py-2"
+              key={file.id}
             >
               <FileText className="mt-px h-3.5 w-3.5 shrink-0 text-brand-purple-600 dark:text-brand-purple-400" />
               <div>
@@ -111,8 +104,8 @@ export function LeftNav() {
 
       <div className="mt-auto border-t border-border pt-3">
         <Link
-          href="/profile"
           className="flex items-center gap-2 px-1.5 py-2 transition-colors hover:bg-brand-purple-50 dark:hover:bg-brand-purple-900/30"
+          href="/profile"
         >
           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-brand-purple-200 bg-brand-purple-50 text-[11px] font-semibold text-brand-purple-800 dark:border-brand-purple-700 dark:bg-brand-purple-900/50 dark:text-brand-purple-300">
             SM

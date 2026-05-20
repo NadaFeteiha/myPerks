@@ -1,6 +1,7 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
+  darkMode: "class",
   content: [
     "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
@@ -68,8 +69,8 @@ const config: Config = {
           400: "#BA7517",
           600: "#854F0B",
         },
-        "surface-2": "#F8F7F4",
-        "surface-3": "#F1EFE8",
+        "surface-2": "var(--surface-2)",
+        "surface-3": "var(--surface-3)",
       },
       borderRadius: {
         lg: "var(--radius)",

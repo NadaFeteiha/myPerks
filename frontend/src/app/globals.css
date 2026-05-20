@@ -35,6 +35,8 @@
   --sidebar-accent-foreground: oklch(20.5% 0 0deg);
   --sidebar-border: oklch(92.2% 0 0deg);
   --sidebar-ring: oklch(70.8% 0 0deg);
+  --surface-2: #F8F7F4;
+  --surface-3: #F1EFE8;
 }
 
 .dark {
@@ -69,6 +71,8 @@
   --sidebar-accent-foreground: oklch(98.5% 0 0deg);
   --sidebar-border: oklch(100% 0 0deg / 10%);
   --sidebar-ring: oklch(55.6% 0 0deg);
+  --surface-2: oklch(20.5% 0 0deg);
+  --surface-3: oklch(26.9% 0 0deg);
 }
 
 @layer base {

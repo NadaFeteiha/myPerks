@@ -2,7 +2,11 @@ import { Sparkles } from "lucide-react";
 
 import { SuggestionCards } from "./suggestion-cards";
 
-export function WelcomeScreen() {
+type WelcomeScreenProps = {
+  onSelectPrompt: (prompt: string) => void;
+};
+
+export function WelcomeScreen({ onSelectPrompt }: WelcomeScreenProps) {
   return (
     <div className="flex flex-col items-center gap-6">
       <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-purple-600 shadow-[0_4px_16px_rgba(83,74,183,0.25)]">
@@ -17,7 +21,7 @@ export function WelcomeScreen() {
           seconds.
         </p>
       </div>
-      <SuggestionCards />
+      <SuggestionCards onSelectPrompt={onSelectPrompt} />
     </div>
   );
 }
