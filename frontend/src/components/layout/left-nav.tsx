@@ -110,15 +110,18 @@ export function LeftNav() {
       </div>
 
       <div className="mt-auto border-t border-border pt-3">
-        <div className="flex items-center gap-2 px-1.5 py-2">
-          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-brand-purple-200 bg-brand-purple-50 text-[11px] font-semibold text-brand-purple-800">
+        <Link
+          href="/profile"
+          className="flex items-center gap-2 px-1.5 py-2 transition-colors hover:bg-brand-purple-50 dark:hover:bg-brand-purple-900/30"
+        >
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-brand-purple-200 bg-brand-purple-50 text-[11px] font-semibold text-brand-purple-800 dark:border-brand-purple-700 dark:bg-brand-purple-900/50 dark:text-brand-purple-300">
             SM
           </div>
           <div>
             <p className="text-[12px] font-medium text-foreground">Sarah Miller</p>
             <p className="text-[11px] text-muted-foreground">Engineering</p>
           </div>
-        </div>
+        </Link>
       </div>
     </nav>
   );
