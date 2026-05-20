@@ -106,7 +106,7 @@ class RequestHistory(Base):
         nullable=False,
         default="pending",
     )
-    created_at = Column(DateTime, nullable=False, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, nullable=False, default=lambda: datetime.datetime.now(datetime.timezone.utc))
     body = Column(Text, nullable=True)
 
     employee = relationship("Employee", back_populates="request_histories")
@@ -128,7 +128,7 @@ class Document(Base):
         nullable=True,
         index=True,
     )
-    uploaded_at = Column(DateTime, nullable=False, default=datetime.datetime.utcnow)
+    uploaded_at = Column(DateTime, nullable=False, default=lambda: datetime.datetime.now(datetime.timezone.utc))
 
     uploader = relationship("Employee", back_populates="documents")
     chunks = relationship(
@@ -179,12 +179,12 @@ class Conversation(Base):
     title = Column(
         String(255), nullable=True
     )  # optional summary/title of the conversation
-    created_at = Column(DateTime, nullable=False, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, nullable=False, default=lambda: datetime.datetime.now(datetime.timezone.utc)
     updated_at = Column(
         DateTime,
         nullable=False,
-        default=datetime.datetime.utcnow,
-        onupdate=datetime.datetime.utcnow,
+        default=lambda: datetime.datetime.now(datetime.timezone.utc),
+        onupdate=lambda: datetime.datetime.now(datetime.timezone.utc),
     )
 
     employee = relationship("Employee", back_populates="conversations")
@@ -214,7 +214,7 @@ class Message(Base):
         nullable=False,
     )
     content = Column(Text, nullable=False)
-    created_at = Column(DateTime, nullable=False, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, nullable=False, default=lambda: datetime.datetime.now(datetime.timezone.utc))
 
     conversation = relationship("Conversation", back_populates="messages")
 
