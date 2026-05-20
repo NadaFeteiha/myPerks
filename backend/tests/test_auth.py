@@ -13,7 +13,7 @@ app = FastAPI()
 @app.get("/protected")
 async def protected_route(
     user_id: str = Depends(get_current_user),
-):  # wrap with Depends
+) -> dict[str, str]:
     return {"user_id": user_id}
 
 
