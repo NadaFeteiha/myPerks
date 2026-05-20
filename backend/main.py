@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from db.models import Employee
 from settings import settings
+from typing import cast
 
 app = FastAPI(title="MyPerks API", version="0.1.0")
 
@@ -34,20 +35,20 @@ async def health() -> dict[str, str]:
 
 # ── TEMP: test route — remove before production ───────────────────────────────
 @app.get("/test/employees")
-async def test_employees() -> list[dict]:
+async def test_employees() -> list[dict[str, str | int | None]]:
     async with AsyncSessionLocal() as session:
         result = await session.execute(select(Employee))
         employees = result.scalars().all()
         return [
             {
-                "id": e.id,
-                "name": e.name,
-                "email": e.email,
-                "department": e.department,
-                "clerk_user_id": e.clerk_user_id,
+                "id": cast(int, e.id),
+                "name": cast(str, e.name),
+                "email": cast(str, e.email),
+                "department": cast(str | None, e.department),
+                "clerk_user_id": cast(str, e.clerk_user_id),
             }
             for e in employees
-        ]
+        ] # type: ignore
 
 
 # ── END TEMP ──────────────────────────────────────────────────────────────────
