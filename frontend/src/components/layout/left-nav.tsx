@@ -3,8 +3,9 @@
 import { FileText, History, LayoutDashboard, MessageCircle, Upload } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useRef } from "react";
 
+import { useAuth } from "@/contexts/auth-context";
+import { MOCK_POLICY_FILES } from "@/data/mock/navigation.mock";
 import { cn } from "@/lib/cn";
 
 type NavItem = {
@@ -19,37 +20,14 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/assistant/history", icon: History, label: "History" },
 ];
 
-type PolicyFile = {
-  id: string;
-  name: string;
-  updatedAt: string;
-};
-
-const POLICY_FILES: PolicyFile[] = [
-  { id: "1", name: "PTO Policy 2024", updatedAt: "Updated May 14" },
-  { id: "2", name: "Parental Leave", updatedAt: "Updated May 15" },
-  { id: "3", name: "Wellness Reimbursement", updatedAt: "Updated May 16" },
-];
-
 export function LeftNav() {
   const pathname = usePathname();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleFileSelect = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      console.log("Selected file:", file.name);
-    }
-  };
+  const { user } = useAuth();
 
   return (
     <nav className="flex w-[200px] shrink-0 flex-col gap-1 overflow-y-auto border-r border-border bg-surface-2 px-3 py-4">
       {NAV_ITEMS.map((item) => {
-        const isActive = pathname.startsWith(item.href);
+        const isActive = isNavItemActive(pathname, item.href);
         return (
           <Link
             className={cn(
@@ -70,9 +48,9 @@ export function LeftNav() {
           Policy documents
         </p>
 
-        <div
-          className="mb-2 cursor-pointer rounded-lg border border-dashed border-border bg-background px-3 py-3 text-center transition-colors hover:bg-brand-purple-50 dark:hover:bg-brand-purple-900/30"
-          onClick={handleFileSelect}
+        <label
+          className="mb-2 flex cursor-pointer flex-col items-center rounded-lg border border-dashed border-border bg-background px-3 py-3 text-center transition-colors hover:bg-brand-purple-50 dark:hover:bg-brand-purple-900/30"
+          htmlFor="policy-file-input"
         >
           <Upload className="mx-auto mb-1 h-4 w-4 text-muted-foreground" />
           <p className="text-[11px] text-muted-foreground">Drop a policy file here</p>
@@ -80,14 +58,20 @@ export function LeftNav() {
           <input
             accept=".txt,.md"
             className="hidden"
-            onChange={handleFileChange}
-            ref={fileInputRef}
+            id="policy-file-input"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) {
+                // TODO: Replace with UploadThing integration
+                void file;
+              }
+            }}
             type="file"
           />
-        </div>
+        </label>
 
         <div className="flex flex-col gap-1.5">
-          {POLICY_FILES.map((file) => (
+          {MOCK_POLICY_FILES.map((file) => (
             <div
               className="flex items-start gap-2 rounded-lg border border-border bg-background px-2.5 py-2"
               key={file.id}
@@ -108,14 +92,20 @@ export function LeftNav() {
           href="/profile"
         >
           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-brand-purple-200 bg-brand-purple-50 text-[11px] font-semibold text-brand-purple-800 dark:border-brand-purple-700 dark:bg-brand-purple-900/50 dark:text-brand-purple-300">
-            SM
+            {user?.initials ?? "?"}
           </div>
           <div>
-            <p className="text-[12px] font-medium text-foreground">Sarah Miller</p>
-            <p className="text-[11px] text-muted-foreground">Engineering</p>
+            <p className="text-[12px] font-medium text-foreground">{user?.name ?? ""}</p>
+            <p className="text-[11px] text-muted-foreground">{user?.role ?? ""}</p>
           </div>
         </Link>
       </div>
     </nav>
   );
+}
+
+function isNavItemActive(pathname: string, href: string): boolean {
+  // /assistant must not activate when /assistant/history is the current route
+  if (href === "/assistant") return pathname === href;
+  return pathname.startsWith(href);
 }

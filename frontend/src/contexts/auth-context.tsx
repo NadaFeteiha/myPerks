@@ -1,76 +1,39 @@
 "use client";
 
-import { createContext, type ReactNode, useContext, useState } from "react";
+import { createContext, useContext } from "react";
 
-type AuthContextType = {
-  isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  logout: () => void;
-  signup: (name: string, email: string, password: string) => Promise<void>;
-  user: null | User;
-};
-
-type User = {
+export type User = {
   email: string;
   initials: string;
   name: string;
   role: string;
 };
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+type AuthContextType = {
+  isAuthenticated: boolean;
+  user: null | User;
+};
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<null | User>(null);
+const MOCK_USER: User = {
+  email: "sarah.miller@company.com",
+  initials: "SM",
+  name: "Sarah Miller",
+  role: "Engineering",
+};
 
-  const login = async (email: string, _password: string) => {
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    setUser({
-      email,
-      initials: "SM",
-      name: "Sarah Miller",
-      role: "Engineering",
-    });
-  };
+const AuthContext = createContext<AuthContextType>({
+  isAuthenticated: true,
+  user: MOCK_USER,
+});
 
-  const signup = async (name: string, email: string, _password: string) => {
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    const initials = name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2);
-    setUser({
-      email,
-      initials,
-      name,
-      role: "Engineering",
-    });
-  };
-
-  const logout = () => {
-    setUser(null);
-  };
-
+export function AuthProvider({ children }: { children: React.ReactNode }) {
   return (
-    <AuthContext.Provider
-      value={{
-        isAuthenticated: !!user,
-        login,
-        logout,
-        signup,
-        user,
-      }}
-    >
+    <AuthContext.Provider value={{ isAuthenticated: true, user: MOCK_USER }}>
       {children}
     </AuthContext.Provider>
   );
 }
 
 export function useAuth() {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
-  return context;
+  return useContext(AuthContext);
 }

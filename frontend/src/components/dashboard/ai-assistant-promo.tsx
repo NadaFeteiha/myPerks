@@ -1,11 +1,7 @@
 import { MessageCircle, Sparkles } from "lucide-react";
 import Link from "next/link";
 
-const PROMPT_CHIPS = [
-  '"How many PTO days do I have?"',
-  '"Does dental cover braces?"',
-  '"Draft a leave email"',
-] as const;
+import { MOCK_PROMPT_CHIPS } from "@/data/mock/assistant.mock";
 
 export function AIAssistantPromo() {
   return (
@@ -26,7 +22,7 @@ export function AIAssistantPromo() {
             advances, or generate a ready-to-send HR email in seconds.
           </p>
           <div className="mt-2.5 flex flex-wrap gap-1.5">
-            {PROMPT_CHIPS.map((chip) => (
+            {MOCK_PROMPT_CHIPS.map((chip) => (
               <span
                 className="rounded-full border border-brand-purple-200 bg-brand-purple-50 px-2.5 py-0.5 text-[11px] text-brand-purple-800 dark:border-brand-purple-700 dark:bg-brand-purple-900/50 dark:text-brand-purple-300"
                 key={chip}
