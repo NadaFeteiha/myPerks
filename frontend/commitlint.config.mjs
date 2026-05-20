@@ -1,4 +1,4 @@
-export default {
+const commitlintConfig = {
   extends: ["@commitlint/config-conventional"],
   plugins: ["commitlint-plugin-tense"],
   rules: {
@@ -6,3 +6,5 @@ export default {
     "tense/subject": [2, "always", "imperative-present"],
   },
 };
+
+export default commitlintConfig;

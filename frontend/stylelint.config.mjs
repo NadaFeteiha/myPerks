@@ -1,4 +1,4 @@
-export default {
+const stylelintConfig = {
   extends: ["stylelint-config-standard"],
   rules: {
     "at-rule-no-unknown": [
@@ -21,3 +21,5 @@ export default {
     ],
   },
 };
+
+export default stylelintConfig;

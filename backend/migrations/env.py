@@ -14,10 +14,9 @@ config.set_main_option("sqlalchemy.url", settings.database_url)
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# TODO: import your models' Base here once db/models.py is created
-# from db.models import Base
-# target_metadata = Base.metadata
-target_metadata = None
+from db.models import Base  # noqa: E402
+
+target_metadata = Base.metadata
 
 
 def run_migrations_offline() -> None:
@@ -32,7 +31,7 @@ def run_migrations_offline() -> None:
         context.run_migrations()
 
 
-def do_run_migrations(connection: object) -> None:
+def do_run_migrations(connection) -> None:
     context.configure(
         compare_type=True,
         connection=connection,
@@ -49,7 +48,7 @@ async def run_async_migrations() -> None:
         poolclass=pool.NullPool,
     )
     async with connectable.connect() as connection:
-        await connection.run_sync(do_run_migrations)
+        await connection.run_sync(lambda conn: do_run_migrations(conn))
     await connectable.dispose()
 
 
