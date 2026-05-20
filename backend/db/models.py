@@ -3,7 +3,7 @@ myPerks — ORM Models
 backend/db/models.py
 """
 
-import datetime
+from datetime import datetime, timezone
 from typing import cast
 
 from pgvector.sqlalchemy import Vector
@@ -179,7 +179,7 @@ class Conversation(Base):
     title = Column(
         String(255), nullable=True
     )  # optional summary/title of the conversation
-    created_at = Column(DateTime, nullable=False, default=lambda: datetime.datetime.now(datetime.timezone.utc)
+    created_at = Column(DateTime, nullable=False, default=lambda: datetime.datetime.now(datetime.timezone.utc))
     updated_at = Column(
         DateTime,
         nullable=False,
