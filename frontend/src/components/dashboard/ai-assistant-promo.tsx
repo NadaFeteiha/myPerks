@@ -18,8 +18,9 @@ export function AIAssistantPromo() {
             Benefits AI Assistant
           </p>
           <p className="max-w-sm text-[12px] leading-relaxed text-brand-purple-800 opacity-80 dark:text-brand-purple-200">
-            Ask anything about your benefits — vacation balance, insurance coverage, salary
-            advances, or generate a ready-to-send HR email in seconds.
+            Ask anything about your benefits — vacation balance, insurance
+            coverage, salary advances, or generate a ready-to-send HR email in
+            seconds.
           </p>
           <div className="mt-2.5 flex flex-wrap gap-1.5">
             {MOCK_PROMPT_CHIPS.map((chip) => (

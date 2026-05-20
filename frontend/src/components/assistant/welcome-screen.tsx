@@ -17,8 +17,8 @@ export function WelcomeScreen({ onSelectPrompt }: WelcomeScreenProps) {
           How can I help you today?
         </h1>
         <p className="max-w-[380px] text-[13px] leading-relaxed text-muted-foreground">
-          Ask anything about your benefits, check balances, or get a ready-to-send HR email in
-          seconds.
+          Ask anything about your benefits, check balances, or get a
+          ready-to-send HR email in seconds.
         </p>
       </div>
       <SuggestionCards onSelectPrompt={onSelectPrompt} />

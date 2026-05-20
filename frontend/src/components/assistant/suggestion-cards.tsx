@@ -15,7 +15,9 @@ export function SuggestionCards({ onSelectPrompt }: SuggestionCardsProps) {
           type="button"
         >
           <p className="mb-1 text-[13px]">{card.emoji}</p>
-          <p className="mb-0.5 text-[12px] font-medium text-foreground">{card.title}</p>
+          <p className="mb-0.5 text-[12px] font-medium text-foreground">
+            {card.title}
+          </p>
           <p className="text-[11px] text-muted-foreground">{card.prompt}</p>
         </button>
       ))}

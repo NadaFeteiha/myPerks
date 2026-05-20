@@ -20,7 +20,10 @@ export function ChatMessages({ messages }: ChatMessagesProps) {
     <div className="flex w-full flex-col gap-6">
       {messages.map((message) => (
         <div
-          className={cn("flex w-full gap-3", message.role === "user" && "flex-row-reverse")}
+          className={cn(
+            "flex w-full gap-3",
+            message.role === "user" && "flex-row-reverse",
+          )}
           key={message.id}
         >
           <div
@@ -45,7 +48,9 @@ export function ChatMessages({ messages }: ChatMessagesProps) {
                 : "bg-surface-2 text-foreground",
             )}
           >
-            <div className="whitespace-pre-wrap">{renderContent(message.content)}</div>
+            <div className="whitespace-pre-wrap">
+              {renderContent(message.content)}
+            </div>
           </div>
         </div>
       ))}

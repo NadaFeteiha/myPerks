@@ -12,7 +12,9 @@ import { getMockAIResponse } from "@/data/mock/assistant.mock";
 
 export function AssistantClient() {
   const [messages, setMessages] = useState<Message[]>([]);
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined,
+  );
 
   useEffect(() => () => clearTimeout(timeoutRef.current), []);
 

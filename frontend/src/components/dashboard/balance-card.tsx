@@ -39,13 +39,18 @@ export function BalanceCard({
       </div>
       <p className="text-[28px] font-bold leading-none tracking-tight text-foreground">
         {value}{" "}
-        <span className="text-[13px] font-normal text-muted-foreground">{unit}</span>
+        <span className="text-[13px] font-normal text-muted-foreground">
+          {unit}
+        </span>
       </p>
       <p className="mt-1 text-[11px] text-muted-foreground">{sub}</p>
       <div className="mt-3 h-1 overflow-hidden rounded-full bg-surface-3">
         <div
           // eslint-disable-next-line security/detect-object-injection
-          className={cn("h-full rounded-full", PROGRESS_COLOR_MAP[progressColor])}
+          className={cn(
+            "h-full rounded-full",
+            PROGRESS_COLOR_MAP[progressColor],
+          )}
           style={{ width: `${clampedProgress}%` }}
         />
       </div>

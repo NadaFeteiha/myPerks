@@ -1,6 +1,12 @@
 "use client";
 
-import { FileText, History, LayoutDashboard, MessageCircle, Upload } from "lucide-react";
+import {
+  FileText,
+  History,
+  LayoutDashboard,
+  MessageCircle,
+  Upload,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -32,7 +38,8 @@ export function LeftNav() {
           <Link
             className={cn(
               "flex items-center gap-2 rounded-lg px-2.5 py-[7px] text-[13px] text-muted-foreground transition-colors hover:bg-brand-purple-50 hover:text-brand-purple-800 dark:hover:bg-brand-purple-900/30 dark:hover:text-brand-purple-300",
-              isActive && "bg-brand-purple-50 font-medium text-brand-purple-800 dark:bg-brand-purple-900/30 dark:text-brand-purple-300",
+              isActive &&
+                "bg-brand-purple-50 font-medium text-brand-purple-800 dark:bg-brand-purple-900/30 dark:text-brand-purple-300",
             )}
             href={item.href}
             key={item.href}
@@ -53,8 +60,12 @@ export function LeftNav() {
           htmlFor="policy-file-input"
         >
           <Upload className="mx-auto mb-1 h-4 w-4 text-muted-foreground" />
-          <p className="text-[11px] text-muted-foreground">Drop a policy file here</p>
-          <p className="text-[10px] text-muted-foreground/60">.txt or .md · MVP</p>
+          <p className="text-[11px] text-muted-foreground">
+            Drop a policy file here
+          </p>
+          <p className="text-[10px] text-muted-foreground/60">
+            .txt or .md · MVP
+          </p>
           <input
             accept=".txt,.md"
             className="hidden"
@@ -78,8 +89,12 @@ export function LeftNav() {
             >
               <FileText className="mt-px h-3.5 w-3.5 shrink-0 text-brand-purple-600 dark:text-brand-purple-400" />
               <div>
-                <p className="text-[12px] font-medium text-foreground">{file.name}</p>
-                <p className="text-[11px] text-muted-foreground">{file.updatedAt}</p>
+                <p className="text-[12px] font-medium text-foreground">
+                  {file.name}
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  {file.updatedAt}
+                </p>
               </div>
             </div>
           ))}
@@ -95,8 +110,12 @@ export function LeftNav() {
             {user?.initials ?? "?"}
           </div>
           <div>
-            <p className="text-[12px] font-medium text-foreground">{user?.name ?? ""}</p>
-            <p className="text-[11px] text-muted-foreground">{user?.role ?? ""}</p>
+            <p className="text-[12px] font-medium text-foreground">
+              {user?.name ?? ""}
+            </p>
+            <p className="text-[11px] text-muted-foreground">
+              {user?.role ?? ""}
+            </p>
           </div>
         </Link>
       </div>

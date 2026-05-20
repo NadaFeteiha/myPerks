@@ -44,13 +44,25 @@ export const MOCK_PROMPT_CHIPS = [
 export function getMockAIResponse(userMessage: string): string {
   const msg = userMessage.toLowerCase();
 
-  if (msg.includes("pto") || msg.includes("vacation") || msg.includes("leave")) {
+  if (
+    msg.includes("pto") ||
+    msg.includes("vacation") ||
+    msg.includes("leave")
+  ) {
     return "You have **15 PTO days** remaining this year. Your next accrual of 1.25 days will be on July 1st. You've used 5 days so far in 2024.";
   }
-  if (msg.includes("insurance") || msg.includes("dental") || msg.includes("cover")) {
+  if (
+    msg.includes("insurance") ||
+    msg.includes("dental") ||
+    msg.includes("cover")
+  ) {
     return "Your **Premium Dental Plan** does cover orthodontic treatment including braces at **50% coverage** up to a lifetime maximum of $2,500. You'll need to pay the remaining 50% out-of-pocket or use your FSA funds.";
   }
-  if (msg.includes("email") || msg.includes("draft") || msg.includes("request")) {
+  if (
+    msg.includes("email") ||
+    msg.includes("draft") ||
+    msg.includes("request")
+  ) {
     return "Here's a draft email for you:\n\n**Subject:** Time Off Request - June 1–5\n\nHi [Manager's Name],\n\nI would like to request time off from **June 1st to June 5th** for personal reasons. I'll make sure all my tasks are completed or delegated before my departure.\n\nPlease let me know if this works for the team schedule.\n\nBest regards,\n[Your Name]";
   }
   if (msg.includes("wellness") || msg.includes("budget")) {

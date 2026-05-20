@@ -18,7 +18,9 @@ export default function ProfilePage() {
           <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-full border-2 border-brand-purple-200 bg-brand-purple-50 text-2xl font-semibold text-brand-purple-800 dark:border-brand-purple-700 dark:bg-brand-purple-900/50 dark:text-brand-purple-300">
             {user.initials}
           </div>
-          <h1 className="text-2xl font-semibold text-foreground">{user.name}</h1>
+          <h1 className="text-2xl font-semibold text-foreground">
+            {user.name}
+          </h1>
           <p className="text-muted-foreground">{user.role}</p>
         </div>
 
