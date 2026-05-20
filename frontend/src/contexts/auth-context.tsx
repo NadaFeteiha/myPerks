@@ -2,7 +2,7 @@
 
 import { createContext, useContext } from "react";
 
-export type User = {
+type User = {
   email: string;
   initials: string;
   name: string;
