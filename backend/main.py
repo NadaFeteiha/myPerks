@@ -49,7 +49,7 @@ async def test_employees() -> list[dict[str, str | int | None]]:
                 "clerk_user_id": cast(str, e.clerk_user_id),
             }
             for e in employees
-        ]  # type: ignore
+        ]
 
 
 # ── END TEMP ──────────────────────────────────────────────────────────────────
