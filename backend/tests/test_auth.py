@@ -1,15 +1,19 @@
 from unittest.mock import AsyncMock, patch
 
-from fastapi import Depends, FastAPI  
+from fastapi import Depends, FastAPI
 from fastapi.testclient import TestClient
+
 from api.auth import get_current_user
 
 # ── Test app setup ─────────────────────────────────────────────────────────────
 
 app = FastAPI()
 
+
 @app.get("/protected")
-async def protected_route(user_id: str = Depends(get_current_user)):  # wrap with Depends
+async def protected_route(
+    user_id: str = Depends(get_current_user),
+):  # wrap with Depends
     return {"user_id": user_id}
 
 
@@ -50,7 +54,9 @@ class TestGetCurrentUser:
         response = client.get("/protected")
 
         assert response.status_code == 401
-        assert "Unauthorized" in response.json()["detail"] or response.status_code == 401
+        assert (
+            "Unauthorized" in response.json()["detail"] or response.status_code == 401
+        )
 
     def test_invalid_token_returns_401(self) -> None:
         """Bad signature → 401 after retry."""

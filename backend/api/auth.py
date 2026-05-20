@@ -60,7 +60,7 @@ def _raise_401(detail: str = "Unauthorized") -> None:
 
 
 async def get_current_user(
-    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),
+    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),  # noqa: B008
 ) -> str:
     """
     FastAPI dependency — verifies the Clerk JWT and returns clerk_user_id.
