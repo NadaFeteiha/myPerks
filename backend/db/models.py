@@ -3,7 +3,7 @@ myPerks — ORM Models
 backend/db/models.py
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import cast
 
 from pgvector.sqlalchemy import Vector
@@ -106,7 +106,7 @@ class RequestHistory(Base):
         nullable=False,
         default="pending",
     )
-    created_at = Column(DateTime, nullable=False, default=lambda: datetime.datetime.now(datetime.timezone.utc))
+    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(UTC))
     body = Column(Text, nullable=True)
 
     employee = relationship("Employee", back_populates="request_histories")
@@ -128,7 +128,7 @@ class Document(Base):
         nullable=True,
         index=True,
     )
-    uploaded_at = Column(DateTime, nullable=False, default=lambda: datetime.datetime.now(datetime.timezone.utc))
+    uploaded_at = Column(DateTime, nullable=False, default=lambda: datetime.now(UTC))
 
     uploader = relationship("Employee", back_populates="documents")
     chunks = relationship(
@@ -179,12 +179,12 @@ class Conversation(Base):
     title = Column(
         String(255), nullable=True
     )  # optional summary/title of the conversation
-    created_at = Column(DateTime, nullable=False, default=lambda: datetime.datetime.now(datetime.timezone.utc))
+    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(UTC))
     updated_at = Column(
         DateTime,
         nullable=False,
-        default=lambda: datetime.datetime.now(datetime.timezone.utc),
-        onupdate=lambda: datetime.datetime.now(datetime.timezone.utc),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
     )
 
     employee = relationship("Employee", back_populates="conversations")
@@ -214,7 +214,7 @@ class Message(Base):
         nullable=False,
     )
     content = Column(Text, nullable=False)
-    created_at = Column(DateTime, nullable=False, default=lambda: datetime.datetime.now(datetime.timezone.utc))
+    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(UTC))
 
     conversation = relationship("Conversation", back_populates="messages")
 
