@@ -2,16 +2,16 @@
 
 import { createContext, useContext } from "react";
 
+type AuthContextType = {
+  isAuthenticated: boolean;
+  user: null | User;
+};
+
 type User = {
   email: string;
   initials: string;
   name: string;
   role: string;
-};
-
-type AuthContextType = {
-  isAuthenticated: boolean;
-  user: null | User;
 };
 
 const MOCK_USER: User = {

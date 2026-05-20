@@ -46,9 +46,9 @@ export function BalanceCard({
       <p className="mt-1 text-[11px] text-muted-foreground">{sub}</p>
       <div className="mt-3 h-1 overflow-hidden rounded-full bg-surface-3">
         <div
-          // eslint-disable-next-line security/detect-object-injection
           className={cn(
             "h-full rounded-full",
+            // eslint-disable-next-line security/detect-object-injection
             PROGRESS_COLOR_MAP[progressColor],
           )}
           style={{ width: `${clampedProgress}%` }}
