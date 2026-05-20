@@ -4,6 +4,7 @@ backend/db/models.py
 """
 
 import datetime
+from typing import cast
 
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
@@ -17,7 +18,7 @@ from sqlalchemy import (
     String,
     Text,
 )
-from sqlalchemy.orm import DeclarativeBase, relationship
+from sqlalchemy.orm import DeclarativeBase, relationship, Mapped, mapped_column
 
 
 class Base(DeclarativeBase):
@@ -57,7 +58,7 @@ class VacationBalance(Base):
     employee_id = Column(
         Integer, ForeignKey("employees.id", ondelete="CASCADE"), nullable=False
     )
-    leave_type = Column(
+    leave_type: Mapped[str] = mapped_column(
         Enum("vacation", "sick", "pto", name="leave_type"),
         nullable=False,
     )
@@ -80,7 +81,7 @@ class VacationBalance(Base):
 
     @property
     def remaining_days(self) -> float:
-        return self.total_days - self.used_days
+        return cast(float, self.total_days - self.used_days)
 
     def __repr__(self) -> str:
         return (
@@ -100,7 +101,7 @@ class RequestHistory(Base):
         index=True,
     )
     type = Column(String(64), nullable=False)
-    status = Column(
+    status: Mapped[str] = mapped_column(
         Enum("pending", "approved", "rejected", "cancelled", name="request_status"),
         nullable=False,
         default="pending",
@@ -150,7 +151,7 @@ class DocumentChunk(Base):
     )
     chunk_index = Column(Integer, nullable=False)
     content = Column(Text, nullable=False)
-    embedding = Column(Vector(1536), nullable=True)
+    embedding: Mapped[list[float] | None] = mapped_column(Vector(1536), nullable=True)
 
     document = relationship("Document", back_populates="chunks")
 
@@ -208,7 +209,7 @@ class Message(Base):
         nullable=False,
         index=True,
     )
-    role = Column(
+    role: Mapped[str] = mapped_column(
         Enum("user", "assistant", name="message_role"),
         nullable=False,
     )
