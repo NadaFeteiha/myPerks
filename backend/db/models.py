@@ -6,7 +6,17 @@ backend/db/models.py
 import datetime
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import Column, DateTime, Enum, Float, ForeignKey, Index, Integer, String, Text
+from sqlalchemy import (
+    Column,
+    DateTime,
+    Enum,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+)
 from sqlalchemy.orm import DeclarativeBase, relationship
 
 
@@ -61,7 +71,9 @@ class VacationBalance(Base):
     __table_args__ = (
         Index(
             "ix_vacation_balance_employee_year_type",
-            "employee_id", "year", "leave_type",
+            "employee_id",
+            "year",
+            "leave_type",
             unique=True,
         ),
     )
@@ -82,7 +94,10 @@ class RequestHistory(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     employee_id = Column(
-        Integer, ForeignKey("employees.id", ondelete="CASCADE"), nullable=False, index=True
+        Integer,
+        ForeignKey("employees.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     type = Column(String(64), nullable=False)
     status = Column(
@@ -107,7 +122,10 @@ class Document(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     filename = Column(String(512), nullable=False)
     uploaded_by = Column(
-        Integer, ForeignKey("employees.id", ondelete="SET NULL"), nullable=True, index=True
+        Integer,
+        ForeignKey("employees.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
     )
     uploaded_at = Column(DateTime, nullable=False, default=datetime.datetime.utcnow)
 
@@ -125,7 +143,10 @@ class DocumentChunk(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     document_id = Column(
-        Integer, ForeignKey("documents.id", ondelete="CASCADE"), nullable=False, index=True
+        Integer,
+        ForeignKey("documents.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     chunk_index = Column(Integer, nullable=False)
     content = Column(Text, nullable=False)
@@ -149,9 +170,14 @@ class Conversation(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     employee_id = Column(
-        Integer, ForeignKey("employees.id", ondelete="CASCADE"), nullable=False, index=True
+        Integer,
+        ForeignKey("employees.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
-    title = Column(String(255), nullable=True)   # optional summary/title of the conversation
+    title = Column(
+        String(255), nullable=True
+    )  # optional summary/title of the conversation
     created_at = Column(DateTime, nullable=False, default=datetime.datetime.utcnow)
     updated_at = Column(
         DateTime,
@@ -162,7 +188,9 @@ class Conversation(Base):
 
     employee = relationship("Employee", back_populates="conversations")
     messages = relationship(
-        "Message", back_populates="conversation", cascade="all, delete-orphan",
+        "Message",
+        back_populates="conversation",
+        cascade="all, delete-orphan",
         order_by="Message.created_at",
     )
 
@@ -175,7 +203,10 @@ class Message(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     conversation_id = Column(
-        Integer, ForeignKey("conversations.id", ondelete="CASCADE"), nullable=False, index=True
+        Integer,
+        ForeignKey("conversations.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     role = Column(
         Enum("user", "assistant", name="message_role"),

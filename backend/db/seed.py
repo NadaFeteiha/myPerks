@@ -17,7 +17,6 @@ import datetime
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from settings import settings
 from db.models import (
     Conversation,
     Employee,
@@ -25,9 +24,12 @@ from db.models import (
     RequestHistory,
     VacationBalance,
 )
+from settings import settings
 
 engine = create_async_engine(settings.database_url, echo=False)
-AsyncSessionLocal = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
+AsyncSessionLocal = async_sessionmaker(
+    bind=engine, class_=AsyncSession, expire_on_commit=False
+)
 
 CURRENT_YEAR = datetime.datetime.now().year
 
@@ -72,12 +74,14 @@ async def seed_employees(session: AsyncSession) -> list[Employee]:
     return employees
 
 
-async def seed_vacation_balances(session: AsyncSession, employees: list[Employee]) -> None:
+async def seed_vacation_balances(
+    session: AsyncSession, employees: list[Employee]
+) -> None:
     balances = []
     leave_configs = [
         ("vacation", 15.0, 3.0),
-        ("sick",     10.0, 1.0),
-        ("pto",       5.0, 0.0),
+        ("sick", 10.0, 1.0),
+        ("pto", 5.0, 0.0),
     ]
     for employee in employees:
         for leave_type, total, used in leave_configs:
@@ -95,7 +99,9 @@ async def seed_vacation_balances(session: AsyncSession, employees: list[Employee
     print(f"✓ Seeded {len(balances)} vacation balances")
 
 
-async def seed_request_histories(session: AsyncSession, employees: list[Employee]) -> None:
+async def seed_request_histories(
+    session: AsyncSession, employees: list[Employee]
+) -> None:
     alice, bob, carol = employees
     requests = [
         # Alice — approved vacation request
@@ -104,7 +110,12 @@ async def seed_request_histories(session: AsyncSession, employees: list[Employee
             type="vacation",
             status="approved",
             created_at=datetime.datetime(CURRENT_YEAR, 3, 10),
-            body='{"start_date": "2026-03-17", "end_date": "2026-03-19", "days": 3, "reason": "Spring break trip"}',
+            body=(
+                '{"start_date": "2026-03-17", '
+                '"end_date": "2026-03-19", '
+                '"days": 3, '
+                '"reason": "Spring break trip"}'
+            ),
         ),
         # Alice — pending PTO request
         RequestHistory(
@@ -112,7 +123,12 @@ async def seed_request_histories(session: AsyncSession, employees: list[Employee
             type="pto",
             status="pending",
             created_at=datetime.datetime(CURRENT_YEAR, 5, 1),
-            body='{"start_date": "2026-05-30", "end_date": "2026-05-30", "days": 1, "reason": "Personal errand"}',
+            body=(
+                '{"start_date": "2026-05-30", '
+                '"end_date": "2026-05-30", '
+                '"days": 1, '
+                '"reason": "Personal errand"}'
+            ),
         ),
         # Bob — approved sick leave
         RequestHistory(
@@ -120,7 +136,12 @@ async def seed_request_histories(session: AsyncSession, employees: list[Employee
             type="sick",
             status="approved",
             created_at=datetime.datetime(CURRENT_YEAR, 2, 5),
-            body='{"start_date": "2026-02-05", "end_date": "2026-02-05", "days": 1, "reason": "Doctor appointment"}',
+            body=(
+                '{"start_date": "2026-02-05", '
+                '"end_date": "2026-02-05", '
+                '"days": 1, '
+                '"reason": "Doctor appointment"}'
+            ),
         ),
         # Bob — rejected vacation request
         RequestHistory(
@@ -128,7 +149,13 @@ async def seed_request_histories(session: AsyncSession, employees: list[Employee
             type="vacation",
             status="rejected",
             created_at=datetime.datetime(CURRENT_YEAR, 4, 15),
-            body='{"start_date": "2026-07-04", "end_date": "2026-07-11", "days": 6, "reason": "Summer vacation", "rejection_reason": "Team coverage conflict"}',
+            body=(
+                '{"start_date": "2026-07-04", '
+                '"end_date": "2026-07-11", '
+                '"days": 6, '
+                '"reason": "Summer vacation", '
+                '"rejection_reason": "Team coverage conflict"}'
+            ),
         ),
         # Carol — approved vacation request
         RequestHistory(
@@ -136,7 +163,12 @@ async def seed_request_histories(session: AsyncSession, employees: list[Employee
             type="vacation",
             status="approved",
             created_at=datetime.datetime(CURRENT_YEAR, 1, 20),
-            body='{"start_date": "2026-02-14", "end_date": "2026-02-14", "days": 1, "reason": "Valentine\'s Day"}',
+            body=(
+                '{"start_date": "2026-02-14", '
+                '"end_date": "2026-02-14", '
+                '"days": 1, '
+                '"reason": "Valentine\'s Day"}'
+            ),
         ),
         # Carol — pending reimbursement
         RequestHistory(
@@ -144,7 +176,11 @@ async def seed_request_histories(session: AsyncSession, employees: list[Employee
             type="reimbursement",
             status="pending",
             created_at=datetime.datetime(CURRENT_YEAR, 5, 10),
-            body='{"amount": 250.00, "currency": "USD", "description": "Marketing conference registration fee"}',
+            body=(
+                '{"amount": 250.00, '
+                '"currency": "USD", '
+                '"description": "Marketing conference registration fee"}'
+            ),
         ),
     ]
     session.add_all(requests)
@@ -165,32 +201,41 @@ async def seed_conversations(session: AsyncSession, employees: list[Employee]) -
     session.add(alice_convo)
     await session.flush()
 
-    session.add_all([
-        Message(
-            conversation_id=alice_convo.id,
-            role="user",
-            content="How many vacation days do I have left this year?",
-            created_at=datetime.datetime(CURRENT_YEAR, 5, 15, 9, 0),
-        ),
-        Message(
-            conversation_id=alice_convo.id,
-            role="assistant",
-            content="You have 12 vacation days remaining for 2026. You started with 15 days and have used 3 days so far.",
-            created_at=datetime.datetime(CURRENT_YEAR, 5, 15, 9, 1),
-        ),
-        Message(
-            conversation_id=alice_convo.id,
-            role="user",
-            content="Can I request next Friday off?",
-            created_at=datetime.datetime(CURRENT_YEAR, 5, 15, 9, 3),
-        ),
-        Message(
-            conversation_id=alice_convo.id,
-            role="assistant",
-            content="Sure! I can help you submit a vacation request for Friday May 23rd. Would you like me to go ahead and submit that?",
-            created_at=datetime.datetime(CURRENT_YEAR, 5, 15, 9, 4),
-        ),
-    ])
+    session.add_all(
+        [
+            Message(
+                conversation_id=alice_convo.id,
+                role="user",
+                content="How many vacation days do I have left this year?",
+                created_at=datetime.datetime(CURRENT_YEAR, 5, 15, 9, 0),
+            ),
+            Message(
+                conversation_id=alice_convo.id,
+                role="assistant",
+                content=(
+                    "You have 12 vacation days remaining for 2026. "
+                    "You started with 15 days and have used 3 days so far."
+                ),
+                created_at=datetime.datetime(CURRENT_YEAR, 5, 15, 9, 1),
+            ),
+            Message(
+                conversation_id=alice_convo.id,
+                role="user",
+                content="Can I request next Friday off?",
+                created_at=datetime.datetime(CURRENT_YEAR, 5, 15, 9, 3),
+            ),
+            Message(
+                conversation_id=alice_convo.id,
+                role="assistant",
+                content=(
+                    "Sure! I can help you submit a vacation request "
+                    "for Friday May 23rd. "
+                    "Would you like me to go ahead and submit that?"
+                ),
+                created_at=datetime.datetime(CURRENT_YEAR, 5, 15, 9, 4),
+            ),
+        ]
+    )
 
     # Bob's conversation with the AI
     bob_convo = Conversation(
@@ -202,20 +247,26 @@ async def seed_conversations(session: AsyncSession, employees: list[Employee]) -
     session.add(bob_convo)
     await session.flush()
 
-    session.add_all([
-        Message(
-            conversation_id=bob_convo.id,
-            role="user",
-            content="Do I need a doctor's note for sick leave?",
-            created_at=datetime.datetime(CURRENT_YEAR, 5, 18, 14, 0),
-        ),
-        Message(
-            conversation_id=bob_convo.id,
-            role="assistant",
-            content="According to company policy, a doctor's note is required for sick leave exceeding 3 consecutive days. For 1-3 days, no documentation is needed.",
-            created_at=datetime.datetime(CURRENT_YEAR, 5, 18, 14, 1),
-        ),
-    ])
+    session.add_all(
+        [
+            Message(
+                conversation_id=bob_convo.id,
+                role="user",
+                content="Do I need a doctor's note for sick leave?",
+                created_at=datetime.datetime(CURRENT_YEAR, 5, 18, 14, 0),
+            ),
+            Message(
+                conversation_id=bob_convo.id,
+                role="assistant",
+                content=(
+                    "According to company policy, a doctor's note is required "
+                    "for sick leave exceeding 3 consecutive days. "
+                    "For 1-3 days, no documentation is needed."
+                ),
+                created_at=datetime.datetime(CURRENT_YEAR, 5, 18, 14, 1),
+            ),
+        ]
+    )
 
     print("✓ Seeded 2 conversations with messages")
 
