@@ -1,3 +1,5 @@
+from typing import cast
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
@@ -5,7 +7,6 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from db.models import Employee
 from settings import settings
-from typing import cast
 
 app = FastAPI(title="MyPerks API", version="0.1.0")
 
