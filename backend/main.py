@@ -3,9 +3,10 @@ from typing import cast
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+from api.chat import router as chat_router
 from db.models import Employee
+from db.session import AsyncSessionLocal
 from settings import settings
 
 app = FastAPI(title="MyPerks API", version="0.1.0")
@@ -18,10 +19,7 @@ app.add_middleware(
     allow_origins=settings.allowed_origins,
 )
 
-engine = create_async_engine(settings.database_url, echo=False)
-AsyncSessionLocal = async_sessionmaker(
-    bind=engine, class_=AsyncSession, expire_on_commit=False
-)
+app.include_router(chat_router)
 
 
 @app.get("/")
@@ -34,7 +32,7 @@ async def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
-# ── TEMP: test route — remove before production ───────────────────────────────
+# ── TEMP: remove before production ───────────────────────────────────────────
 @app.get("/test/employees")
 async def test_employees() -> list[dict[str, str | int | None]]:
     async with AsyncSessionLocal() as session:
@@ -50,6 +48,4 @@ async def test_employees() -> list[dict[str, str | int | None]]:
             }
             for e in employees
         ]
-
-
 # ── END TEMP ──────────────────────────────────────────────────────────────────
