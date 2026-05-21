@@ -19,6 +19,7 @@ const stylelintConfig = {
         ],
       },
     ],
+    "import-notation": "string", // allow bare string imports, required for Tailwind v4
   },
 };
 
