@@ -6,7 +6,6 @@ import { Geist, Geist_Mono } from "next/font/google";
 import AppProvider from "@/app/provider";
 
 import "./globals.css";
-import Header from "@/components/header";
 
 const geistSans = Geist({
   subsets: ["latin"],
@@ -33,11 +32,10 @@ export default function RootLayout({
 }>) {
   return (
     <ClerkProvider>
-      <html lang="en">
+      <html lang="en" suppressHydrationWarning>
         <body
           className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-background text-foreground`}
         >
-          <Header />
           <AppProvider>{children}</AppProvider>
         </body>
       </html>
