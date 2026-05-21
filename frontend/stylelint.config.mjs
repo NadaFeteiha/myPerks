@@ -19,6 +19,7 @@ const stylelintConfig = {
         ],
       },
     ],
+    "import-notation": "string",
   },
 };
 
