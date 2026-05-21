@@ -61,3 +61,4 @@ coverage/
 *.pem
 .husky/_/
 .claude/
+backend/pgdata/
