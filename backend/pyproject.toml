@@ -22,3 +22,7 @@ exclude = ["migrations/"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+
+markers = [
+    "integration: tests that need a real DB and/or external API (skipped by default)",
+]

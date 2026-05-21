@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     )
     allowed_origins: list[str] = ["http://localhost:3000"]
     openai_api_key: str = ""
+    clerk_issuer: str = ""
     clerk_jwks_url: str = ""
 
 

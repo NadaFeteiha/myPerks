@@ -122,6 +122,7 @@ class Document(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     filename = Column(String(512), nullable=False)
+    content_sha256 = Column(String(64), nullable=True, unique=True, index=True)
     uploaded_by = Column(
         Integer,
         ForeignKey("employees.id", ondelete="SET NULL"),
