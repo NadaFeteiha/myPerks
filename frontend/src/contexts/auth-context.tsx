@@ -26,9 +26,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const user: null | User = clerkUser
     ? {
         email: clerkUser.primaryEmailAddress?.emailAddress ?? "",
-        initials: getInitials(
-          clerkUser.fullName ?? clerkUser.firstName ?? "U",
-        ),
+        initials: getInitials(clerkUser.fullName ?? clerkUser.firstName ?? "U"),
         name: clerkUser.fullName ?? clerkUser.firstName ?? "User",
         role: (clerkUser.publicMetadata?.role as string) ?? "",
       }
