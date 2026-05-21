@@ -1,5 +1,6 @@
 "use client";
 
+import { useUser } from "@clerk/nextjs";
 import { createContext, useContext } from "react";
 
 type AuthContextType = {
@@ -14,21 +15,25 @@ type User = {
   role: string;
 };
 
-const MOCK_USER: User = {
-  email: "sarah.miller@company.com",
-  initials: "SM",
-  name: "Sarah Miller",
-  role: "Engineering",
-};
-
 const AuthContext = createContext<AuthContextType>({
-  isAuthenticated: true,
-  user: MOCK_USER,
+  isAuthenticated: false,
+  user: null,
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const { isSignedIn, user: clerkUser } = useUser();
+
+  const user: null | User = clerkUser
+    ? {
+        email: clerkUser.primaryEmailAddress?.emailAddress ?? "",
+        initials: getInitials(clerkUser.fullName ?? clerkUser.firstName ?? "U"),
+        name: clerkUser.fullName ?? clerkUser.firstName ?? "User",
+        role: (clerkUser.publicMetadata?.role as string) ?? "",
+      }
+    : null;
+
   return (
-    <AuthContext.Provider value={{ isAuthenticated: true, user: MOCK_USER }}>
+    <AuthContext.Provider value={{ isAuthenticated: !!isSignedIn, user }}>
       {children}
     </AuthContext.Provider>
   );
@@ -36,4 +41,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 export function useAuth() {
   return useContext(AuthContext);
+}
+
+function getInitials(name: string): string {
+  return name
+    .split(" ")
+    .filter(Boolean)
+    .map((p) => p[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
 }

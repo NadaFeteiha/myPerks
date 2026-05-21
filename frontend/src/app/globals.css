@@ -40,6 +40,26 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+
+  /* Brand colors — static palette, same in light and dark */
+  --color-brand-purple-50: #eeedfe;
+  --color-brand-purple-100: #cecbf6;
+  --color-brand-purple-200: #afa9ec;
+  --color-brand-purple-300: #9080e0;
+  --color-brand-purple-400: #7262cb;
+  --color-brand-purple-600: #534ab7;
+  --color-brand-purple-700: #433ba0;
+  --color-brand-purple-800: #3c3489;
+  --color-brand-purple-900: #26215c;
+  --color-brand-amber-400: #ba7517;
+  --color-brand-amber-600: #854f0b;
+  --color-brand-teal-50: #e1f5ee;
+  --color-brand-teal-200: #5dcaa5;
+  --color-brand-teal-400: #1d9e75;
+  --color-brand-teal-600: #0f6e56;
+  --color-brand-teal-800: #085041;
 }
 
 :root {
