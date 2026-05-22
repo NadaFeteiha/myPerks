@@ -46,7 +46,7 @@ class UploadThingFile(BaseModel):
     url: HttpUrl
     name: str
     size: int  # bytes
-    key: str   # UploadThing opaque file key
+    key: str  # UploadThing opaque file key
 
 
 class UploadCallbackPayload(BaseModel):
@@ -59,7 +59,7 @@ class UploadCallbackPayload(BaseModel):
 
 
 class IngestResponse(BaseModel):
-    status: str       # "ingested" | "duplicate"
+    status: str  # "ingested" | "duplicate"
     document_id: int
 
 
@@ -80,8 +80,7 @@ async def _download_pdf(url: str) -> tuple[bytes, str]:
             response.raise_for_status()
     except httpx.HTTPStatusError as exc:
         logger.error(
-            "UploadThing CDN returned %s for %s",
-            exc.response.status_code, url
+            "UploadThing CDN returned %s for %s", exc.response.status_code, url
         )
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
@@ -136,7 +135,7 @@ async def _resolve_employee(
 async def upload_callback(
     payload: UploadCallbackPayload,
     clerk_user_id: str = Depends(get_current_user),
-    session: AsyncSession = Depends(get_session), # noqa: B008
+    session: AsyncSession = Depends(get_session),  # noqa: B008
 ) -> IngestResponse:
     """
     Called by UploadThing after the frontend successfully uploads a file.

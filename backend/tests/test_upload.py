@@ -84,6 +84,7 @@ def _make_http_response(
     resp.headers = {"content-type": content_type}
     if status_code >= 400:
         import httpx
+
         resp.raise_for_status.side_effect = httpx.HTTPStatusError(
             "upstream error", request=MagicMock(), response=resp
         )
@@ -157,7 +158,6 @@ def _patches(
 
 
 class TestUploadCallback:
-
     def test_happy_path_returns_200_and_document_id(self):
         """Valid upload → ingestion succeeds → 200 with document_id."""
         patches, ingest_mock = _patches()
