@@ -79,10 +79,16 @@ async def _download_pdf(url: str) -> tuple[bytes, str]:
             response = await client.get(url, follow_redirects=True)
             response.raise_for_status()
     except httpx.HTTPStatusError as exc:
-        logger.error("UploadThing CDN returned %s for %s", exc.response.status_code, url)
+        logger.error(
+            "UploadThing CDN returned %s for %s",
+            exc.response.status_code, url
+        )
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Could not download file from storage ({exc.response.status_code}).",
+            detail=(
+                f"Could not download file from storage"
+                f" ({exc.response.status_code})."
+            ),
         ) from exc
     except httpx.RequestError as exc:
         logger.error("Network error downloading %s: %s", url, exc)
@@ -130,7 +136,7 @@ async def _resolve_employee(
 async def upload_callback(
     payload: UploadCallbackPayload,
     clerk_user_id: str = Depends(get_current_user),
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_session), # noqa: B008
 ) -> IngestResponse:
     """
     Called by UploadThing after the frontend successfully uploads a file.
