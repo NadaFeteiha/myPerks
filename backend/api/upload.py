@@ -176,7 +176,7 @@ async def upload_callback(
         document = await ingest_pdf(
             source=pdf_bytes,
             filename=file_meta.name or filename,
-            uploaded_by=employee.id,
+            uploaded_by=int(employee.id),
             session=session,
         )
     except Exception as exc:
