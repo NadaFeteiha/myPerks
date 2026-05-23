@@ -174,7 +174,7 @@ async def upload_callback(
     logger.info("Starting ingestion: filename=%r employee=%d", filename, employee.id)
     try:
         document = await ingest_pdf(
-            source=pdf_bytes,
+            pdf_bytes=pdf_bytes,
             filename=file_meta.name or filename,
             uploaded_by=int(employee.id),
             session=session,

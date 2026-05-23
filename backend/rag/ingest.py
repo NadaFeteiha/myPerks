@@ -104,7 +104,7 @@ def _sha256(pdf_bytes: bytes) -> str:
 
 # ── Main entry point ──────────────────────────────────────────────────────────
 async def ingest_pdf(
-    source: bytes,
+    pdf_bytes: bytes,
     filename: str,
     uploaded_by: int | None,
     session: AsyncSession,
@@ -112,11 +112,9 @@ async def ingest_pdf(
     """
     Ingest a PDF into the RAG store.
 
-    ``source`` is the raw upload content received from the server.
     Returns the persisted (or pre-existing, on dedup) ``Document`` with its
     ``chunks`` relationship eagerly loaded.
     """
-    pdf_bytes = source
     content_hash = _sha256(pdf_bytes)
 
     # Dedup: return early if identical bytes were already ingested.

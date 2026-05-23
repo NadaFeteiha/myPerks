@@ -35,7 +35,7 @@ async def main(pdf_path: str, employee_id: int) -> None:
     print(f"[1/3] Ingesting '{filename}' ...")
     async with AsyncSessionLocal() as session:
         doc = await ingest_pdf(
-            source=pdf_bytes,
+            pdf_bytes=pdf_bytes,
             filename=filename,
             uploaded_by=None,
             session=session,
