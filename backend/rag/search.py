@@ -44,7 +44,7 @@ async def search_chunks(
     """
     embeddings_client = OpenAIEmbeddings(
         model=EMBEDDING_MODEL,
-        api_key=settings.openai_api_key,
+        openai_api_key=settings.openai_api_key,
         max_retries=3,
     )
 

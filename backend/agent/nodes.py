@@ -36,7 +36,7 @@ _llm = ChatOpenAI(
 
 _embeddings = OpenAIEmbeddings(
     model="text-embedding-3-small",
-    api_key=settings.openai_api_key,
+    openai_api_key=settings.openai_api_key,
 )
 
 # ---------------------------------------------------------------------------
