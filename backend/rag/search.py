@@ -31,7 +31,6 @@ class ChunkResult:
     page_end: int | None
 
 
-
 async def search_chunks(
     query: str, session: AsyncSession, top_k: int = 5
 ) -> list[ChunkResult]:
@@ -61,14 +60,14 @@ async def search_chunks(
     chunks = list(await session.scalars(stmt))
 
     return [
-            ChunkResult(
-                chunk_id=c.id,
-                document_id=c.document_id,
-                filename=c.document.filename,
-                chunk_index=c.chunk_index,
-                content=c.content,
-                page_start=c.page_start,
-                page_end=c.page_end,
-            )
-            for c in chunks
-        ]
+        ChunkResult(
+            chunk_id=c.id,
+            document_id=c.document_id,
+            filename=c.document.filename,
+            chunk_index=c.chunk_index,
+            content=c.content,
+            page_start=c.page_start,
+            page_end=c.page_end,
+        )
+        for c in chunks
+    ]

@@ -73,8 +73,10 @@ ready-to-send professional email with Subject line, salutation, body, and sign-o
 # Router helpers
 # ---------------------------------------------------------------------------
 
+
 class _RouterOutput(BaseModel):
     """Structured output the router LLM must return."""
+
     intent: list[Literal["rag", "db", "email"]]
 
 
@@ -99,6 +101,7 @@ def _last_human_message(state: AgentState) -> str:
 # Node functions  (each receives the current AgentState and returns a partial
 #                  update dict that LangGraph merges back into the state)
 # ---------------------------------------------------------------------------
+
 
 async def router_node(state: AgentState) -> dict[str, Any]:
     """
@@ -193,13 +196,17 @@ async def db_node(state: AgentState) -> dict[str, Any]:
 
             # Fetch leave balances for the current calendar year
             balances = (
-                await db.execute(
-                    select(VacationBalance).where(
-                        VacationBalance.employee_id == employee_id,
-                        VacationBalance.year == current_year,
+                (
+                    await db.execute(
+                        select(VacationBalance).where(
+                            VacationBalance.employee_id == employee_id,
+                            VacationBalance.year == current_year,
+                        )
                     )
                 )
-            ).scalars().all()
+                .scalars()
+                .all()
+            )
 
             # Fetch the 5 most recent HR requests (newest first)
             # recent_requests = (

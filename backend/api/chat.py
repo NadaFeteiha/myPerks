@@ -42,7 +42,7 @@ async def chat(
     body: ChatRequest,
     employee: Employee = Depends(get_current_employee),  # noqa: B008
 ) -> StreamingResponse:
-    """Stream the agent's answer """
+    """Stream the agent's answer"""
     employee_id = cast(int, employee.id)
 
     async def event_stream() -> AsyncGenerator[str, None]:

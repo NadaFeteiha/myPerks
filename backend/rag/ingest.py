@@ -64,10 +64,12 @@ def _extract_text(pdf_bytes: bytes) -> str:
     parts = [(page.extract_text() or "") for page in reader.pages]
     return "\n".join(parts).strip()
 
+
 def _extract_pages(pdf_bytes: bytes) -> list[tuple[int, str]]:
     """Return [(1-based page_num, text), ...] for every page in the PDF."""
     reader = PdfReader(io.BytesIO(pdf_bytes))
     return [(i + 1, page.extract_text() or "") for i, page in enumerate(reader.pages)]
+
 
 # ── Chunking ─────────────────────────────────────────────────────────────────
 def _chunk_text_(
@@ -93,6 +95,7 @@ def _chunk_text_(
             break
         start += step
     return chunks
+
 
 def _chunk_text(
     pages: list[tuple[int, str]],
@@ -169,7 +172,7 @@ async def ingest_pdf(
     pages = _extract_pages(pdf_bytes)
     all_text = "\n".join(text for _, text in pages).strip()
     if not all_text:
-        raise ValueError( f"No extractable text in {filename!r}. ")
+        raise ValueError(f"No extractable text in {filename!r}. ")
 
     chunk_data = _chunk_text(pages)
 
