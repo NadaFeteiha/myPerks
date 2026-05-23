@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+from api.routers.dashboard import router as dashboard_router
 from db.models import Employee
 from settings import settings
 
@@ -17,6 +18,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_origins=settings.allowed_origins,
 )
+
+app.include_router(dashboard_router)
 
 engine = create_async_engine(settings.database_url, echo=False)
 AsyncSessionLocal = async_sessionmaker(
