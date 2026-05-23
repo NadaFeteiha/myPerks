@@ -7,7 +7,9 @@ return the top-k most similar DocumentChunk rows via pgvector cosine distance.
 """
 
 from __future__ import annotations
+
 from dataclasses import dataclass
+
 from langchain_openai import OpenAIEmbeddings
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -30,7 +32,9 @@ class ChunkResult:
 
 
 
-async def search_chunks(query: str, session: AsyncSession, top_k: int = 5,) -> list[ChunkResult]:
+async def search_chunks(
+    query: str, session: AsyncSession, top_k: int = 5
+) -> list[ChunkResult]:
     """
     Embed ``query`` and return the ``top_k`` most relevant chunks by cosine
     distance.  Returns a plain dataclass list so callers never touch ORM

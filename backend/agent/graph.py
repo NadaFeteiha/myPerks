@@ -28,7 +28,7 @@ from langchain_core.messages import HumanMessage
 from langgraph.graph import END, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
-from .nodes import db_node, rag_node, router_node, responder_node
+from .nodes import db_node, rag_node, responder_node, router_node
 from .state import AgentState
 
 
@@ -100,9 +100,9 @@ async def run_agent(employee_id: int, question: str) -> AsyncGenerator[str, None
     `async for chunk in run_agent(...)` to receive each text token as it
     is produced by the LLM (suitable for Server-Sent Events / SSE).
 
-    Only responder_node tokens are streamed back to the user, since that's the final answer generation step.
-    router, RAG, and DB nodes run silently
-    they produce structured data, not user-facing text.
+    Only responder_node tokens are streamed back to the user, since that's the final
+    answer generation step. router, RAG, and DB nodes run silently — they produce
+    structured data, not user-facing text.
 
     Parameters
     ----------
@@ -122,7 +122,9 @@ async def run_agent(employee_id: int, question: str) -> AsyncGenerator[str, None
     async for event in graph.astream_events(initial_state, version="v2"):
         # We only care about token chunks that come from the responder LLM call
         is_llm_stream = event["event"] == "on_chat_model_stream"
-        is_responder = event.get("metadata", {}).get("langgraph_node") == "responder_node"
+        is_responder = (
+            event.get("metadata", {}).get("langgraph_node") == "responder_node"
+        )
 
         if is_llm_stream and is_responder:
             chunk = event["data"].get("chunk")

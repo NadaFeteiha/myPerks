@@ -2,7 +2,7 @@
 Four processing steps of our agent.
 
 Flow:
-    1. router_node     — classify what the user needs (policy docs / live data / email draft)
+    1. router_node     — classify what the user needs (policy docs / live data / email)
     2. rag_node        — fetch relevant HR policy snippets from the vector store
     3. db_node         — fetch the employee's live leave balances and request history
     4. responder_node — combine all context and produce the final answer
@@ -17,7 +17,7 @@ from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from pydantic import BaseModel
 from sqlalchemy import select
 
-from db.models import DocumentChunk, Employee, RequestHistory, VacationBalance
+from db.models import DocumentChunk, Employee, VacationBalance
 from db.session import AsyncSessionLocal
 from settings import settings
 
@@ -26,7 +26,7 @@ from .state import AgentState
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# LLM and embedding model instances 
+# LLM and embedding model instances
 # ---------------------------------------------------------------------------
 
 _llm = ChatOpenAI(
@@ -113,7 +113,10 @@ async def router_node(state: AgentState) -> dict[str, Any]:
         result = cast(
             _RouterOutput,
             await _router_runnable.ainvoke(
-                [SystemMessage(content=_ROUTER_PROMPT), {"role": "user", "content": question}]
+                [
+                    SystemMessage(content=_ROUTER_PROMPT),
+                    {"role": "user", "content": question},
+                ]
             ),
         )
         # Only keep valid intent values; discard anything unexpected
@@ -226,7 +229,8 @@ async def db_node(state: AgentState) -> dict[str, Any]:
         #     lines.append("\nRecent Requests (last 5):")
         #     for r in recent_requests:
         #         date_str = (
-        #             r.created_at.strftime("%Y-%m-%d") if r.created_at is not None else "N/A"
+        #             r.created_at.strftime("%Y-%m-%d")
+        #             if r.created_at is not None else "N/A"
         #         )
         #         lines.append(f"  [{date_str}] {r.type} — {r.status}")
 
@@ -275,7 +279,10 @@ async def responder_node(state: AgentState) -> dict[str, Any]:
     )
 
     response = await _llm.ainvoke(
-        [SystemMessage(content=_RESPONDER_PROMPT), {"role": "user", "content": user_content}]
+        [
+            SystemMessage(content=_RESPONDER_PROMPT),
+            {"role": "user", "content": user_content},
+        ]
     )
 
     return {"messages": [AIMessage(content=str(response.content))]}

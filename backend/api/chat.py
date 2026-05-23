@@ -1,5 +1,6 @@
 import json
-from typing import AsyncGenerator, cast
+from collections.abc import AsyncGenerator
+from typing import cast
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
@@ -39,7 +40,7 @@ class ChatRequest(BaseModel):
 @router.post("")
 async def chat(
     body: ChatRequest,
-    employee: Employee = Depends(get_current_employee),
+    employee: Employee = Depends(get_current_employee),  # noqa: B008
 ) -> StreamingResponse:
     """Stream the agent's answer """
     employee_id = cast(int, employee.id)

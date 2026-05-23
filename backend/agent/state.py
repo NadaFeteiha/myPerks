@@ -11,10 +11,12 @@ class AgentState(TypedDict):
     Fields
     ------
     employee_id  : The logged-in employee's database ID.
-    messages     : Full chat history. LangGraph merges new messages into this list automatically (via `add_messages`).
+    messages     : Full chat history. LangGraph merges new messages automatically
+                    (via `add_messages`).
     intent       : What the router decided the user needs, e.g. ["rag", "db"].
     rag_context  : Policy/document text retrieved by the RAG node.
-    db_context   : Live employee data (leave balances, recent requests) from the DB node.
+    db_context   : Live employee data (leave balances, recent requests) from the DB
+                    node.
     """
 
     employee_id: int

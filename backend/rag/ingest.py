@@ -27,16 +27,16 @@ existing Document is returned). Changed bytes are treated as a new document.
 from __future__ import annotations
 
 import hashlib
+import io
 from pathlib import Path
 
-import io
 import tiktoken
 from langchain_openai import OpenAIEmbeddings
 from pypdf import PdfReader
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-
 from sqlalchemy.orm import selectinload
+
 from db import Document, DocumentChunk
 from settings import settings
 
@@ -201,7 +201,7 @@ async def ingest_pdf(
         )
     ]
     session.add(document)
-    await session.flush() 
+    await session.flush()
     await session.commit()
     refreshed = await session.scalar(
         select(Document)
