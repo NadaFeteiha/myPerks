@@ -14,7 +14,7 @@ from typing import Any, Literal, cast
 
 from langchain_core.messages import AIMessage, SystemMessage
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
-from pydantic import BaseModel, SecretStr
+from pydantic import BaseModel
 from sqlalchemy import select
 
 from db.models import DocumentChunk, Employee, RequestHistory, VacationBalance
@@ -31,12 +31,12 @@ logger = logging.getLogger(__name__)
 
 _llm = ChatOpenAI(
     model="gpt-4o",
-    api_key=SecretStr(settings.openai_api_key),
+    api_key=settings.openai_api_key,
 )
 
 _embeddings = OpenAIEmbeddings(
     model="text-embedding-3-small",
-    api_key=SecretStr(settings.openai_api_key),
+    api_key=settings.openai_api_key,
 )
 
 # ---------------------------------------------------------------------------

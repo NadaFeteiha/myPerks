@@ -1,5 +1,5 @@
 """
-graph.py — wires the four nodes into a LangGraph workflow.
+        LangGraph workflow
 
 The execution flow looks like this:
 
@@ -8,7 +8,7 @@ The execution flow looks like this:
         └───────┬──────┘
                 │
         ┌───────┴────────┐   (run in parallel when both are needed)
-        ▼                ▼    
+        ▼                ▼
     ┌─────────┐    ┌─────────┐
     │ rag_node│    │ db_node │
     └───┬─────┘    └────┬────┘
@@ -100,8 +100,8 @@ async def run_agent(employee_id: int, question: str) -> AsyncGenerator[str, None
     `async for chunk in run_agent(...)` to receive each text token as it
     is produced by the LLM (suitable for Server-Sent Events / SSE).
 
-    Only responder_node tokens are streamed back to the user, since that's the final answer generation step. 
-    router, RAG, and DB nodes run silently 
+    Only responder_node tokens are streamed back to the user, since that's the final answer generation step.
+    router, RAG, and DB nodes run silently
     they produce structured data, not user-facing text.
 
     Parameters

@@ -143,15 +143,17 @@ class Document(Base):
 class DocumentChunk(Base):
     __tablename__ = "document_chunks"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    document_id = Column(
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    document_id: Mapped[int] = mapped_column(
         Integer,
         ForeignKey("documents.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
-    chunk_index = Column(Integer, nullable=False)
-    content = Column(Text, nullable=False)
+    chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    page_start: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    page_end: Mapped[int | None] = mapped_column(Integer, nullable=True)
     embedding: Mapped[list[float] | None] = mapped_column(Vector(1536), nullable=True)
 
     document = relationship("Document", back_populates="chunks")

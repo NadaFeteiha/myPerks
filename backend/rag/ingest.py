@@ -29,12 +29,14 @@ from __future__ import annotations
 import hashlib
 from pathlib import Path
 
+import io
 import tiktoken
 from langchain_openai import OpenAIEmbeddings
 from pypdf import PdfReader
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from sqlalchemy.orm import selectinload
 from db import Document, DocumentChunk
 from settings import settings
 
@@ -62,9 +64,13 @@ def _extract_text(pdf_bytes: bytes) -> str:
     parts = [(page.extract_text() or "") for page in reader.pages]
     return "\n".join(parts).strip()
 
+def _extract_pages(pdf_bytes: bytes) -> list[tuple[int, str]]:
+    """Return [(1-based page_num, text), ...] for every page in the PDF."""
+    reader = PdfReader(io.BytesIO(pdf_bytes))
+    return [(i + 1, page.extract_text() or "") for i, page in enumerate(reader.pages)]
 
 # ── Chunking ─────────────────────────────────────────────────────────────────
-def _chunk_text(
+def _chunk_text_(
     text: str, max_tokens: int = MAX_TOKENS, overlap: int = OVERLAP_TOKENS
 ) -> list[str]:
     """Split text into ~max_tokens chunks with token overlap, using tiktoken."""
@@ -88,15 +94,56 @@ def _chunk_text(
         start += step
     return chunks
 
+def _chunk_text(
+    pages: list[tuple[int, str]],
+    max_tokens: int = MAX_TOKENS,
+    overlap: int = OVERLAP_TOKENS,
+) -> list[tuple[str, int, int]]:
+    """
+    Split page text into token-budget chunks with overlap.
 
-# ── Hashing ──────────────────────────────────────────────────────────────────
+    Returns [(chunk_text, page_start, page_end), ...]
+    Each chunk carries the first and last page number
+    it spans so callers can surface citations.
+    """
+    if overlap >= max_tokens:
+        raise ValueError("overlap must be smaller than max_tokens")
+
+    enc = tiktoken.get_encoding(_ENCODING)
+
+    # Build a flat list of (token_id, page_num) across all pages.
+    annotated: list[tuple[int, int]] = []
+    for page_num, text in pages:
+        for token in enc.encode(text):
+            annotated.append((token, page_num))
+
+    if not annotated:
+        return []
+
+    step = max_tokens - overlap
+    result: list[tuple[str, int, int]] = []
+    n = len(annotated)
+    start = 0
+    while start < n:
+        end = min(start + max_tokens, n)
+        window = annotated[start:end]
+        token_ids = [t for t, _ in window]
+        page_nums = [p for _, p in window]
+        result.append((enc.decode(token_ids), page_nums[0], page_nums[-1]))
+        if end == n:
+            break
+        start += step
+    return result
+
+
+# ── Hashing ───────────────────────────────────────────────────────────────────
 def _sha256(pdf_bytes: bytes) -> str:
     return hashlib.sha256(pdf_bytes).hexdigest()
 
 
-# ── Main entry point ─────────────────────────────────────────────────────────
+# ── Main entry point ──────────────────────────────────────────────────────────
 async def ingest_pdf(
-    source: str | bytes | Path,
+    pdf_bytes: bytes,
     filename: str,
     uploaded_by: int | None,
     session: AsyncSession,
@@ -104,28 +151,37 @@ async def ingest_pdf(
     """
     Ingest a PDF into the RAG store.
 
-    Returns the persisted (or pre-existing, on dedup) ``Document``.
-    Importable and callable from the upload endpoint.
+    ``pdf_bytes`` is the raw upload content received from the server.
+    Returns the persisted (or pre-existing, on dedup) ``Document`` with its
+    ``chunks`` relationship eagerly loaded.
     """
-    pdf_bytes = _read_pdf_bytes(source)
     content_hash = _sha256(pdf_bytes)
 
-    # Dedup: skip if identical bytes already ingested.
+    # Dedup: return early if identical bytes were already ingested.
     existing = await session.scalar(
-        select(Document).where(Document.content_sha256 == content_hash)
+        select(Document)
+        .where(Document.content_sha256 == content_hash)
+        .options(selectinload(Document.chunks))
     )
     if existing is not None:
         return existing
 
-    text = _extract_text(pdf_bytes)
-    chunks = _chunk_text(text)
+    pages = _extract_pages(pdf_bytes)
+    all_text = "\n".join(text for _, text in pages).strip()
+    if not all_text:
+        raise ValueError( f"No extractable text in {filename!r}. ")
 
-    embeddings = OpenAIEmbeddings(
+    chunk_data = _chunk_text(pages)
+
+    embeddings_client = OpenAIEmbeddings(
         model=EMBEDDING_MODEL,
-        openai_api_key=settings.openai_api_key,
+        api_key=settings.openai_api_key,
+        max_retries=3,
     )
-    # embed_documents handles batching; returns a 1536-dim vector per chunk.
-    vectors = await embeddings.aembed_documents(chunks) if chunks else []
+    # aembed_documents handles batching internally.
+    vectors = await embeddings_client.aembed_documents(
+        [text for text, _, _ in chunk_data]
+    )
 
     document = Document(
         filename=filename,
@@ -135,12 +191,22 @@ async def ingest_pdf(
     document.chunks = [
         DocumentChunk(
             chunk_index=i,
-            content=chunk,
+            content=text,
+            page_start=pg_start,
+            page_end=pg_end,
             embedding=vector,
         )
-        for i, (chunk, vector) in enumerate(zip(chunks, vectors, strict=True))
+        for i, ((text, pg_start, pg_end), vector) in enumerate(
+            zip(chunk_data, vectors, strict=True)
+        )
     ]
     session.add(document)
+    await session.flush() 
     await session.commit()
-    await session.refresh(document)
-    return document
+    refreshed = await session.scalar(
+        select(Document)
+        .where(Document.id == document.id)
+        .options(selectinload(Document.chunks))
+    )
+    assert refreshed is not None
+    return refreshed
