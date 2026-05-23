@@ -100,7 +100,7 @@ async def get_request_history(
     """
     Returns the authenticated user's request history, newest first.
     Supports pagination via `page` and `page_size` query params.
-   """
+    """
     employee = await _get_employee(clerk_user_id, db)
 
     # Count total matching rows for pagination metadata
