@@ -84,4 +84,7 @@ def _parse_args() -> tuple[str | None, int]:
 
 if __name__ == "__main__":
     pdf_path, employee_id = _parse_args()
+    if pdf_path is None:
+        print("Usage: python test_rag_dev.py <path/to/file.pdf> [--employee-id N]")
+        sys.exit(1)
     asyncio.run(main(pdf_path, employee_id))
