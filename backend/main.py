@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
 
+from api.upload import router as upload_router
 from api.chat import router as chat_router
 from db.models import Employee
 from db.session import AsyncSessionLocal
@@ -19,6 +20,7 @@ app.add_middleware(
     allow_origins=settings.allowed_origins,
 )
 
+app.include_router(upload_router)
 app.include_router(chat_router)
 
 
