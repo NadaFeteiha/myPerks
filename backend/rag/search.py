@@ -19,6 +19,12 @@ from db import DocumentChunk
 from rag.ingest import EMBEDDING_MODEL
 from settings import settings
 
+_embeddings = OpenAIEmbeddings(  # type: ignore[call-arg]
+    model=EMBEDDING_MODEL,
+    api_key=settings.openai_api_key,
+    max_retries=3,
+)
+
 
 @dataclass
 class ChunkResult:
@@ -42,13 +48,7 @@ async def search_chunks(
     Used by the LangGraph RAG node — call this, then pass the results to the
     synthesiser as grounding context.
     """
-    embeddings_client = OpenAIEmbeddings(
-        model=EMBEDDING_MODEL,
-        openai_api_key=settings.openai_api_key,
-        max_retries=3,
-    )
-
-    query_vector = (await embeddings_client.aembed_documents([query]))[0]
+    query_vector = (await _embeddings.aembed_documents([query]))[0]
 
     stmt = (
         select(DocumentChunk)

@@ -13,12 +13,13 @@ from datetime import UTC, datetime
 from typing import Any, Literal, cast
 
 from langchain_core.messages import AIMessage, SystemMessage
-from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from langchain_openai import ChatOpenAI
 from pydantic import BaseModel
 from sqlalchemy import select
 
-from db.models import DocumentChunk, Employee, VacationBalance
+from db.models import Employee, VacationBalance
 from db.session import AsyncSessionLocal
+from rag.search import search_chunks
 from settings import settings
 
 from .state import AgentState
@@ -32,11 +33,6 @@ logger = logging.getLogger(__name__)
 _llm = ChatOpenAI(
     model="gpt-4o",
     api_key=settings.openai_api_key,
-)
-
-_embeddings = OpenAIEmbeddings(
-    model="text-embedding-3-small",
-    openai_api_key=settings.openai_api_key,
 )
 
 # ---------------------------------------------------------------------------
@@ -136,34 +132,21 @@ async def rag_node(state: AgentState) -> dict[str, Any]:
     """
     Step 2a — Policy document retrieval (RAG = Retrieval-Augmented Generation).
 
-    1. Embed the user's question into a vector.
-    2. Find the 5 document chunks whose embeddings are closest (cosine distance).
-    3. Join them into a single text block stored in state["rag_context"].
-
-    The responder node will inject this text into the LLM prompt as
-    grounding context so answers are based on real HR policy documents.
+    Calls search_chunks to embed the question and return the top-5 most
+    relevant DocumentChunk rows from documents uploaded via POST /upload/callback.
+    Includes filename and page numbers so the responder can cite sources.
     """
     question = _last_human_message(state)
     try:
-        # Convert the question to a numeric vector for similarity search
-        query_vector = await _embeddings.aembed_query(question)
-
         async with AsyncSessionLocal() as db:
-            rows = (
-                await db.execute(
-                    select(DocumentChunk.content, DocumentChunk.document_id)
-                    .where(DocumentChunk.embedding.is_not(None))
-                    .order_by(DocumentChunk.embedding.cosine_distance(query_vector))
-                    .limit(5)
-                )
-            ).fetchall()
+            chunks = await search_chunks(query=question, session=db, top_k=5)
 
-        if not rows:
+        if not chunks:
             return {"rag_context": ""}
 
-        # Separate chunks with a divider so the LLM can tell them apart
         rag_context = "\n\n---\n\n".join(
-            f"[Document {row.document_id}]\n{row.content}" for row in rows
+            f"[{c.filename}, p.{c.page_start}–{c.page_end}]\n{c.content}"
+            for c in chunks
         )
     except Exception:
         logger.exception("RAG node failed")
@@ -208,16 +191,6 @@ async def db_node(state: AgentState) -> dict[str, Any]:
                 .all()
             )
 
-            # Fetch the 5 most recent HR requests (newest first)
-            # recent_requests = (
-            #     await db.execute(
-            #         select(RequestHistory)
-            #         .where(RequestHistory.employee_id == employee_id)
-            #         .order_by(RequestHistory.created_at.desc())
-            #         .limit(5)
-            #     )
-            # ).scalars().all()
-
         # Build a plain-text summary the LLM can read directly
         lines: list[str] = []
 
@@ -231,15 +204,6 @@ async def db_node(state: AgentState) -> dict[str, Any]:
                     f"  {b.leave_type}: {b.used_days}/{b.total_days} days used"
                     f" ({b.remaining_days:.1f} remaining)"
                 )
-
-        # if recent_requests:
-        #     lines.append("\nRecent Requests (last 5):")
-        #     for r in recent_requests:
-        #         date_str = (
-        #             r.created_at.strftime("%Y-%m-%d")
-        #             if r.created_at is not None else "N/A"
-        #         )
-        #         lines.append(f"  [{date_str}] {r.type} — {r.status}")
 
         db_context = "\n".join(lines)
 

@@ -28,7 +28,6 @@ from __future__ import annotations
 
 import hashlib
 import io
-from pathlib import Path
 
 import tiktoken
 from langchain_openai import OpenAIEmbeddings
@@ -41,28 +40,12 @@ from db import Document, DocumentChunk
 from settings import settings
 
 # ── Tunables ─────────────────────────────────────────────────────────────────
-EMBEDDING_MODEL = "text-embedding-3-small"  # 1536 dims, matches Vector(1536)
+EMBEDDING_MODEL = "text-embedding-3-small"
 MAX_TOKENS = 500
 OVERLAP_TOKENS = 50
-# text-embedding-3-small uses the cl100k_base encoding.
 _ENCODING = "cl100k_base"
 
-
 # ── Text extraction ────────────────────────────────────────────────────────--
-def _read_pdf_bytes(source: str | bytes | Path) -> bytes:
-    """Return raw PDF bytes from a path or bytes input."""
-    if isinstance(source, bytes):
-        return source
-    return Path(source).read_bytes()
-
-
-def _extract_text(pdf_bytes: bytes) -> str:
-    """Extract and concatenate text from all pages of a PDF."""
-    import io
-
-    reader = PdfReader(io.BytesIO(pdf_bytes))
-    parts = [(page.extract_text() or "") for page in reader.pages]
-    return "\n".join(parts).strip()
 
 
 def _extract_pages(pdf_bytes: bytes) -> list[tuple[int, str]]:
@@ -72,31 +55,6 @@ def _extract_pages(pdf_bytes: bytes) -> list[tuple[int, str]]:
 
 
 # ── Chunking ─────────────────────────────────────────────────────────────────
-def _chunk_text_(
-    text: str, max_tokens: int = MAX_TOKENS, overlap: int = OVERLAP_TOKENS
-) -> list[str]:
-    """Split text into ~max_tokens chunks with token overlap, using tiktoken."""
-    if not text:
-        return []
-    enc = tiktoken.get_encoding(_ENCODING)
-    tokens = enc.encode(text)
-    n = len(tokens)
-    if n == 0:
-        return []
-    step = max_tokens - overlap
-    if step <= 0:
-        raise ValueError("overlap must be smaller than max_tokens")
-    chunks: list[str] = []
-    start = 0
-    while start < n:
-        end = min(start + max_tokens, n)
-        chunks.append(enc.decode(tokens[start:end]))
-        if end == n:
-            break
-        start += step
-    return chunks
-
-
 def _chunk_text(
     pages: list[tuple[int, str]],
     max_tokens: int = MAX_TOKENS,
@@ -146,7 +104,7 @@ def _sha256(pdf_bytes: bytes) -> str:
 
 # ── Main entry point ──────────────────────────────────────────────────────────
 async def ingest_pdf(
-    pdf_bytes: bytes,
+    source: bytes,
     filename: str,
     uploaded_by: int | None,
     session: AsyncSession,
@@ -154,10 +112,11 @@ async def ingest_pdf(
     """
     Ingest a PDF into the RAG store.
 
-    ``pdf_bytes`` is the raw upload content received from the server.
+    ``source`` is the raw upload content received from the server.
     Returns the persisted (or pre-existing, on dedup) ``Document`` with its
     ``chunks`` relationship eagerly loaded.
     """
+    pdf_bytes = source
     content_hash = _sha256(pdf_bytes)
 
     # Dedup: return early if identical bytes were already ingested.
@@ -176,11 +135,12 @@ async def ingest_pdf(
 
     chunk_data = _chunk_text(pages)
 
-    embeddings_client = OpenAIEmbeddings(
+    embeddings_client = OpenAIEmbeddings(  # type: ignore[call-arg]
         model=EMBEDDING_MODEL,
-        openai_api_key=settings.openai_api_key,
+        api_key=settings.openai_api_key,
         max_retries=3,
     )
+
     # aembed_documents handles batching internally.
     vectors = await embeddings_client.aembed_documents(
         [text for text, _, _ in chunk_data]
@@ -204,8 +164,7 @@ async def ingest_pdf(
         )
     ]
     session.add(document)
-    await session.flush()
-    await session.commit()
+    await session.flush()  # assigns document.id; caller owns the commit
     refreshed = await session.scalar(
         select(Document)
         .where(Document.id == document.id)

@@ -24,7 +24,7 @@ The execution flow looks like this:
 
 from collections.abc import AsyncGenerator, Hashable, Sequence
 
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from langgraph.graph import END, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
@@ -92,27 +92,40 @@ def _build_graph() -> CompiledStateGraph:
 graph: CompiledStateGraph = _build_graph()
 
 
-async def run_agent(employee_id: int, question: str) -> AsyncGenerator[str, None]:
+async def run_agent(
+    employee_id: int,
+    question: str,
+    history: list[tuple[str, str]] | None = None,
+) -> AsyncGenerator[str, None]:
     """
     Entry point for running the agent with token-by-token streaming.
 
-    This is an async generator, which means callers iterate over it with
-    `async for chunk in run_agent(...)` to receive each text token as it
-    is produced by the LLM (suitable for Server-Sent Events / SSE).
+    This is an async generator — callers iterate with
+    `async for chunk in run_agent(...)` to receive tokens as they are produced
+    by the LLM (suitable for Server-Sent Events / SSE).
 
-    Only responder_node tokens are streamed back to the user, since that's the final
-    answer generation step. router, RAG, and DB nodes run silently — they produce
-    structured data, not user-facing text.
+    Only responder_node tokens are streamed; router, RAG, and DB nodes run
+    silently — they produce structured data, not user-facing text.
 
     Parameters
     ----------
     employee_id : Database ID of the logged-in employee.
-    question    : The user's question text.
+    question    : The user's current question.
+    history     : Prior conversation turns as (role, content) pairs — role is
+                    "user" or "assistant".  Injected before the current question
+                    so the LLM has multi-turn context.
     """
-    # The initial state of the graph
+    messages: list[BaseMessage] = []
+    for role, content in history or []:
+        if role == "user":
+            messages.append(HumanMessage(content=content))
+        else:
+            messages.append(AIMessage(content=content))
+    messages.append(HumanMessage(content=question))
+
     initial_state: AgentState = {
         "employee_id": employee_id,
-        "messages": [HumanMessage(content=question)],
+        "messages": messages,
         "intent": [],
         "rag_context": "",
         "db_context": "",
