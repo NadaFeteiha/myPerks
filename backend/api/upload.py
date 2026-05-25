@@ -15,6 +15,7 @@ Protected by Clerk JWT via get_current_user (T3).
 from __future__ import annotations
 
 import logging
+from datetime import datetime
 from urllib.parse import urlparse
 
 import httpx
@@ -24,7 +25,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.auth import get_current_user
-from db.models import Employee
+from db.models import Document, Employee
 from db.session import get_session
 from rag.ingest import ingest_pdf
 
@@ -62,6 +63,14 @@ class IngestResponse(BaseModel):
     status: str  # "ingested" | "duplicate"
     document_id: int
 
+class DocumentResponse(BaseModel):
+    id: int
+    filename: str
+    uploaded_at: datetime
+
+
+class DocumentListResponse(BaseModel):
+    documents: list[DocumentResponse]
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -188,3 +197,38 @@ async def upload_callback(
 
     logger.info("Ingestion complete document_id=%d", document.id)
     return IngestResponse(status="ingested", document_id=document.id)
+
+@router.get(
+    "/documents",
+    response_model=DocumentListResponse,
+    status_code=status.HTTP_200_OK,
+    summary="List documents uploaded by the authenticated employee",
+)
+async def list_documents(
+    clerk_user_id: str = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session), # noqa: B008
+) -> DocumentListResponse:
+    employee = await _resolve_employee(clerk_user_id, session)
+    if employee is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Authenticated user has no employee record.",
+        )
+
+    result = await session.execute(
+        select(Document)
+        .where(Document.uploaded_by == employee.id)
+        .order_by(Document.uploaded_at.desc())
+    )
+    documents = result.scalars().all()
+
+    return DocumentListResponse(
+        documents=[
+            DocumentResponse(
+                id=int(doc.id),
+                filename=str(doc.filename),
+                uploaded_at=doc.uploaded_at,
+            )
+            for doc in documents
+        ]
+    )
