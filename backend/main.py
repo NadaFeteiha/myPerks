@@ -3,9 +3,10 @@ from typing import cast
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+from api.upload import router as upload_router
 from db.models import Employee
+from db.session import AsyncSessionLocal
 from settings import settings
 
 app = FastAPI(title="MyPerks API", version="0.1.0")
@@ -18,10 +19,7 @@ app.add_middleware(
     allow_origins=settings.allowed_origins,
 )
 
-engine = create_async_engine(settings.database_url, echo=False)
-AsyncSessionLocal = async_sessionmaker(
-    bind=engine, class_=AsyncSession, expire_on_commit=False
-)
+app.include_router(upload_router)
 
 
 @app.get("/")
