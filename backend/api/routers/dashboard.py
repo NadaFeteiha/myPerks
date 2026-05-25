@@ -20,8 +20,6 @@ from db.session import get_db
 
 router = APIRouter(prefix="/me", tags=["dashboard"])
 
-CURRENT_YEAR = datetime.datetime.now().year
-
 
 # ── Shared helper ─────────────────────────────────────────────────────────────
 
@@ -59,18 +57,19 @@ async def get_vacation_balance(
     """
     Returns the authenticated user's leave balances for the current year.
     """
+    current_year = datetime.datetime.now().year
     employee = await _get_employee(clerk_user_id, db)
 
     result = await db.execute(
         select(VacationBalance).where(
             VacationBalance.employee_id == employee.id,
-            VacationBalance.year == CURRENT_YEAR,
+            VacationBalance.year == current_year,
         )
     )
     balances = result.scalars().all()
 
     return VacationBalanceResponse(
-        year=CURRENT_YEAR,
+        year=current_year,
         balances=[
             LeaveBalanceSchema(
                 leave_type=b.leave_type,
@@ -155,12 +154,14 @@ async def get_benefits_summary(
     Returns aggregated benefits data shaped for frontend chart rendering.
     Includes percent_used per leave type calculated server-side.
     """
+
+    current_year = datetime.datetime.now().year
     employee = await _get_employee(clerk_user_id, db)
 
     result = await db.execute(
         select(VacationBalance).where(
             VacationBalance.employee_id == employee.id,
-            VacationBalance.year == CURRENT_YEAR,
+            VacationBalance.year == current_year,
         )
     )
     balances = result.scalars().all()
@@ -179,4 +180,4 @@ async def get_benefits_summary(
             )
         )
 
-    return BenefitsSummaryResponse(year=CURRENT_YEAR, summary=summary)
+    return BenefitsSummaryResponse(year=current_year, summary=summary)
