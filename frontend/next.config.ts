@@ -6,6 +6,15 @@ const nextConfig: NextConfig = {
   experimental: {
     authInterrupts: true,
   },
+  async rewrites() {
+    const backendUrl = process.env.BACKEND_URL ?? "http://localhost:8000";
+    return [
+      {
+        destination: `${backendUrl}/:path*`,
+        source: "/api/backend/:path*",
+      },
+    ];
+  },
 };
 
 const sentryOrg = process.env.SENTRY_ORG;
