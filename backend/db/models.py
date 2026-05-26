@@ -106,7 +106,9 @@ class RequestHistory(Base):
         nullable=False,
         default="pending",
     )
-    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(UTC))
+    created_at = Column(
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC)
+    )
     body = Column(Text, nullable=True)
 
     employee = relationship("Employee", back_populates="request_histories")
@@ -129,7 +131,9 @@ class Document(Base):
         nullable=True,
         index=True,
     )
-    uploaded_at = Column(DateTime, nullable=False, default=lambda: datetime.now(UTC))
+    uploaded_at = Column(
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC)
+    )
 
     uploader = relationship("Employee", back_populates="documents")
     chunks = relationship(
@@ -143,15 +147,17 @@ class Document(Base):
 class DocumentChunk(Base):
     __tablename__ = "document_chunks"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    document_id = Column(
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    document_id: Mapped[int] = mapped_column(
         Integer,
         ForeignKey("documents.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
-    chunk_index = Column(Integer, nullable=False)
-    content = Column(Text, nullable=False)
+    chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    page_start: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    page_end: Mapped[int | None] = mapped_column(Integer, nullable=True)
     embedding: Mapped[list[float] | None] = mapped_column(Vector(1536), nullable=True)
 
     document = relationship("Document", back_populates="chunks")
@@ -180,9 +186,11 @@ class Conversation(Base):
     title = Column(
         String(255), nullable=True
     )  # optional summary/title of the conversation
-    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(UTC))
+    created_at = Column(
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC)
+    )
     updated_at = Column(
-        DateTime,
+        DateTime(timezone=True),
         nullable=False,
         default=lambda: datetime.now(UTC),
         onupdate=lambda: datetime.now(UTC),
@@ -215,7 +223,9 @@ class Message(Base):
         nullable=False,
     )
     content = Column(Text, nullable=False)
-    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(UTC))
+    created_at = Column(
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC)
+    )
 
     conversation = relationship("Conversation", back_populates="messages")
 
