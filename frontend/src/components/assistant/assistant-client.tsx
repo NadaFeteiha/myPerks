@@ -17,10 +17,10 @@ export function AssistantClient() {
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<null | string>(null);
 
   // Persisted across turns within the same conversation session
-  const conversationIdRef = useRef<number | null>(null);
+  const conversationIdRef = useRef<null | number>(null);
   // Ensure only one registration attempt per mount
   const registeredRef = useRef(false);
 
@@ -34,16 +34,16 @@ export function AssistantClient() {
         const token = await getToken();
         if (!token) return;
         await fetch("/api/backend/employees/me", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
           body: JSON.stringify({
-            name: user.fullName ?? user.firstName ?? "Employee",
-            email: user.primaryEmailAddress?.emailAddress ?? "",
             department: null,
+            email: user.primaryEmailAddress?.emailAddress ?? "",
+            name: user.fullName ?? user.firstName ?? "Employee",
           }),
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          method: "POST",
         });
       } catch {
         // Non-critical — chat will show a clearer error if needed

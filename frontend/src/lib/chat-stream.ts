@@ -1,29 +1,30 @@
+import { logger } from "@sentry/nextjs";
 
 export interface StreamChatOptions {
-  question: string;
-  conversationId: number | null;
-  token: string;
+  conversationId: null | number;
   onConversationId: (id: number) => void;
   onToken: (token: string) => void;
+  question: string;
+  token: string;
 }
 
 export async function streamChat({
-  question,
   conversationId,
-  token,
   onConversationId,
   onToken,
+  question,
+  token,
 }: StreamChatOptions): Promise<void> {
   const res = await fetch("/api/backend/chat", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
     body: JSON.stringify({
-      question,
       conversation_id: conversationId ?? undefined,
+      question,
     }),
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    method: "POST",
   });
 
   if (!res.ok) {
@@ -64,7 +65,7 @@ export async function streamChat({
           onToken(parsed.text);
         }
       } catch {
-        // Malformed SSE data — skip silently
+        logger.warn("Failed to parse SSE data", { data });
       }
     }
   }
