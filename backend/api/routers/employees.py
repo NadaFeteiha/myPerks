@@ -59,10 +59,20 @@ async def register_me(
             await session.flush()  # get employee.id before creating balances
 
             current_year = datetime.datetime.now().year
+            eid = employee.id
             session.add_all([
-                VacationBalance(employee_id=employee.id, leave_type="vacation", total_days=15.0, used_days=0.0, year=current_year),
-                VacationBalance(employee_id=employee.id, leave_type="sick", total_days=10.0, used_days=0.0, year=current_year),
-                VacationBalance(employee_id=employee.id, leave_type="pto", total_days=5.0, used_days=0.0, year=current_year),
+                VacationBalance(
+                    employee_id=eid, leave_type="vacation",
+                    total_days=15.0, used_days=0.0, year=current_year,
+                ),
+                VacationBalance(
+                    employee_id=eid, leave_type="sick",
+                    total_days=10.0, used_days=0.0, year=current_year,
+                ),
+                VacationBalance(
+                    employee_id=eid, leave_type="pto",
+                    total_days=5.0, used_days=0.0, year=current_year,
+                ),
             ])
             await session.commit()
             await session.refresh(employee)

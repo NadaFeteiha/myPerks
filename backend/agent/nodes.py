@@ -200,10 +200,9 @@ async def db_node(state: AgentState) -> dict[str, Any]:
         if balances:
             lines.append(f"\nLeave Balances ({current_year}):")
             for b in balances:
-                lines.append(
-                    f"  {b.leave_type}: {int(b.used_days)}/{int(b.total_days)} days used"
-                    f" ({int(b.remaining_days)} remaining)"
-                )
+                used = f"{int(b.used_days)}/{int(b.total_days)} days used"
+                remaining = f"({int(b.remaining_days)} remaining)"
+                lines.append(f"  {b.leave_type}: {used} {remaining}")
 
         db_context = "\n".join(lines)
 
