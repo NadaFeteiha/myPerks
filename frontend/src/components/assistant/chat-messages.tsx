@@ -49,7 +49,20 @@ export function ChatMessages({ messages }: ChatMessagesProps) {
             )}
           >
             <div className="whitespace-pre-wrap">
-              {renderContent(message.content)}
+              {message.streaming && message.content === "" ? (
+                <span className="inline-flex gap-1">
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-current [animation-delay:0ms]" />
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-current [animation-delay:150ms]" />
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-current [animation-delay:300ms]" />
+                </span>
+              ) : (
+                <>
+                  {renderContent(message.content)}
+                  {message.streaming && (
+                    <span className="ml-0.5 inline-block h-3.5 w-0.5 animate-pulse bg-current align-text-bottom" />
+                  )}
+                </>
+              )}
             </div>
           </div>
         </div>
