@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from fastapi.testclient import TestClient
 
 from api.auth import get_current_user
-from db.session import get_db
+from db.session import get_session
 from main import app
 
 client = TestClient(app)
@@ -115,7 +115,7 @@ class TestGetVacationBalance:
         """Happy path — valid JWT + employee in DB → returns balances."""
         mock_session = make_mock_session([make_scalar_result(MOCK_BALANCES)])
         app.dependency_overrides[get_current_user] = override_auth
-        app.dependency_overrides[get_db] = make_db_override(mock_session)
+        app.dependency_overrides[get_session] = make_db_override(mock_session)
         try:
             with patch(
                 "api.routers.dashboard._get_employee",
@@ -146,7 +146,7 @@ class TestGetVacationBalance:
 
         mock_session = make_mock_session([])
         app.dependency_overrides[get_current_user] = override_auth
-        app.dependency_overrides[get_db] = make_db_override(mock_session)
+        app.dependency_overrides[get_session] = make_db_override(mock_session)
         try:
             with patch(
                 "api.routers.dashboard._get_employee",
@@ -170,7 +170,7 @@ class TestGetRequestHistory:
             [make_count_result(2), make_scalar_result(MOCK_REQUESTS)]
         )
         app.dependency_overrides[get_current_user] = override_auth
-        app.dependency_overrides[get_db] = make_db_override(mock_session)
+        app.dependency_overrides[get_session] = make_db_override(mock_session)
         try:
             with patch(
                 "api.routers.dashboard._get_employee",
@@ -223,7 +223,7 @@ class TestGetBenefitsSummary:
         """Happy path — returns summary with computed percent_used."""
         mock_session = make_mock_session([make_scalar_result(MOCK_BALANCES)])
         app.dependency_overrides[get_current_user] = override_auth
-        app.dependency_overrides[get_db] = make_db_override(mock_session)
+        app.dependency_overrides[get_session] = make_db_override(mock_session)
         try:
             with patch(
                 "api.routers.dashboard._get_employee",

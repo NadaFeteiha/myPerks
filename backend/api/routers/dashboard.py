@@ -16,7 +16,7 @@ from api.schemas.dashboard import (
     VacationBalanceResponse,
 )
 from db.models import Employee, RequestHistory, VacationBalance
-from db.session import get_db
+from db.session import get_session
 
 router = APIRouter(prefix="/me", tags=["dashboard"])
 
@@ -51,7 +51,7 @@ async def _get_employee(clerk_user_id: str, db: AsyncSession) -> Employee:
     summary="Get current user's vacation balances",
 )
 async def get_vacation_balance(
-    db: AsyncSession = Depends(get_db),  # noqa: B008
+    db: AsyncSession = Depends(get_session),  # noqa: B008
     clerk_user_id: str = Depends(get_current_user),  # noqa: B008
 ) -> VacationBalanceResponse:
     """
@@ -93,7 +93,7 @@ async def get_vacation_balance(
 async def get_request_history(
     page: int = Query(default=1, ge=1, description="Page number, 1-indexed"),
     page_size: int = Query(default=10, ge=1, le=100, description="Items per page"),
-    db: AsyncSession = Depends(get_db),  # noqa: B008
+    db: AsyncSession = Depends(get_session),  # noqa: B008
     clerk_user_id: str = Depends(get_current_user),  # noqa: B008
 ) -> RequestHistoryResponse:
     """
@@ -147,7 +147,7 @@ async def get_request_history(
     summary="Get aggregated benefits usage for dashboard charts",
 )
 async def get_benefits_summary(
-    db: AsyncSession = Depends(get_db),  # noqa: B008
+    db: AsyncSession = Depends(get_session),  # noqa: B008
     clerk_user_id: str = Depends(get_current_user),  # noqa: B008
 ) -> BenefitsSummaryResponse:
     """
