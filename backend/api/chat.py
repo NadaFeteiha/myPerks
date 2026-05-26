@@ -56,7 +56,6 @@ async def chat(
     body: ChatRequest,
     employee: Employee = Depends(get_current_employee),  # noqa: B008
 ) -> StreamingResponse:
-
     employee_id = cast(int, employee.id)
 
     # ── 1. Resolve or create conversation + load history ───────────────────────
