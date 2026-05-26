@@ -4,8 +4,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
 
-from api.routers.dashboard import router as dashboard_router
 from api.chat import router as chat_router
+from api.routers.dashboard import router as dashboard_router
 from api.upload import router as upload_router
 from db.models import Employee
 from db.session import AsyncSessionLocal
