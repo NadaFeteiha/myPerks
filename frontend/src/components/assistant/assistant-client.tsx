@@ -84,9 +84,7 @@ export function AssistantClient() {
           onToken: (chunk) => {
             setMessages((prev) =>
               prev.map((m) =>
-                m.id === assistantId
-                  ? { ...m, content: m.content + chunk }
-                  : m,
+                m.id === assistantId ? { ...m, content: m.content + chunk } : m,
               ),
             );
           },

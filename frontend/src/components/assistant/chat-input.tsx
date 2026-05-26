@@ -32,7 +32,11 @@ export function ChatInput({ disabled = false, onSendMessage }: ChatInputProps) {
         className="h-10 flex-1 rounded-xl border border-border bg-surface-2 px-3.5 text-[13px] text-foreground placeholder:text-muted-foreground focus:border-brand-purple-600 focus:outline-none disabled:opacity-50"
         disabled={disabled}
         onChange={(e) => setValue(e.target.value)}
-        placeholder={disabled ? "Waiting for response…" : "Ask anything about your benefits…"}
+        placeholder={
+          disabled
+            ? "Waiting for response…"
+            : "Ask anything about your benefits…"
+        }
         type="text"
         value={value}
       />
