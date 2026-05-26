@@ -24,6 +24,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
   { href: "/assistant", icon: MessageCircle, label: "AI Assistant" },
   { href: "/assistant/history", icon: History, label: "History" },
+  { href: "/dashboard/upload", icon: Upload, label: "Documents" },
 ];
 
 export function LeftNav() {
