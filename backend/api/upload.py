@@ -174,11 +174,14 @@ async def upload_callback(
     logger.info("Starting ingestion: filename=%r employee=%d", filename, employee.id)
     try:
         document = await ingest_pdf(
-            source=pdf_bytes,
+            pdf_bytes=pdf_bytes,
             filename=file_meta.name or filename,
             uploaded_by=int(employee.id),
             session=session,
         )
+        await session.commit()
+    except HTTPException:
+        raise
     except Exception as exc:
         logger.exception("Ingestion failed for filename=%r: %s", filename, exc)
         raise HTTPException(
