@@ -1,4 +1,4 @@
-export function BalanceCardSkeleton() {
+function BalanceCardSkeleton() {
   return (
     <div className="rounded-xl border border-border bg-white p-4 dark:bg-card">
       <div className="mb-2.5 flex items-center justify-between">
