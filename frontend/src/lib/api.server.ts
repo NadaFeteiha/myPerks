@@ -1,8 +1,9 @@
-// frontend/src/lib/api.ts
-
 import { auth } from "@clerk/nextjs/server";
 
-const BACKEND_PREFIX = "/api/backend";
+const BACKEND_PREFIX =
+  typeof window === "undefined"
+    ? `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"}`
+    : "/api/backend";
 
 export interface BenefitsSummaryResponse {
   summary: BenefitSummaryItem[];
@@ -22,6 +23,15 @@ export interface LeaveBalance {
   remaining_days: number;
   total_days: number;
   used_days: number;
+}
+
+export interface OnboardResponse {
+  clerk_user_id: string;
+  created: boolean;
+  department: null | string;
+  email: null | string;
+  id: number;
+  name: null | string;
 }
 
 export interface RequestHistoryItem {
@@ -46,27 +56,17 @@ export interface VacationBalanceResponse {
 
 async function apiFetch<T>(path: string): Promise<T> {
   const headers = await getAuthHeader();
-
   const response = await fetch(`${BACKEND_PREFIX}${path}`, {
-    // next.revalidate = 0 disables caching — dashboard data should
-    // always be fresh, not served from Next.js cache.
     cache: "no-store",
-    headers: {
-      "Content-Type": "application/json",
-      ...headers,
-    },
+    headers: { "Content-Type": "application/json", ...headers },
   });
-
   if (!response.ok) {
     throw new Error(`API error: ${response.status} ${response.statusText}`);
   }
-
   return response.json() as Promise<T>;
 }
 
 async function getAuthHeader(): Promise<{ Authorization: string }> {
-  // auth() is a Clerk server-side helper — reads the JWT from the
-  // current request session without any extra configuration.
   const { getToken } = await auth();
   const token = await getToken();
   return { Authorization: `Bearer ${token}` };
@@ -75,11 +75,10 @@ async function getAuthHeader(): Promise<{ Authorization: string }> {
 export const api = {
   getBenefitsSummary: () =>
     apiFetch<BenefitsSummaryResponse>("/me/benefits-summary"),
-
+  getMe: () => apiFetch<OnboardResponse>("/me"),
   getRequestHistory: (page = 1, pageSize = 10) =>
     apiFetch<RequestHistoryResponse>(
       `/me/requests?page=${page}&page_size=${pageSize}`,
     ),
-
   getVacationBalance: () => apiFetch<VacationBalanceResponse>("/me/vacation"),
 };
