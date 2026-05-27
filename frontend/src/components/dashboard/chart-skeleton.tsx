@@ -23,5 +23,3 @@ function ChartSkeleton() {
     </div>
   );
 }
-
-
