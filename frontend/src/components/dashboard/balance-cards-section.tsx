@@ -15,7 +15,9 @@ export async function BalanceCardsSection() {
   if (!data.balances.length) {
     return (
       <div className="mb-5 rounded-xl border border-border bg-white p-6 text-center dark:bg-card">
-        <p className="text-[12px] text-muted-foreground">No leave balances found for {data.year}.</p>
+        <p className="text-[12px] text-muted-foreground">
+          No leave balances found for {data.year}.
+        </p>
       </div>
     );
   }
@@ -24,31 +26,32 @@ export async function BalanceCardsSection() {
     <div className="mb-5 grid grid-cols-3 gap-2.5">
       {data.balances.map((balance) => {
         const iconType = getIconType(balance.leave_type);
-        const progress = balance.total_days > 0
-          ? Math.round((balance.remaining_days / balance.total_days) * 100)
-          : 0;
+        const progress =
+          balance.total_days > 0
+            ? Math.round((balance.remaining_days / balance.total_days) * 100)
+            : 0;
 
-          return (
-            <BalanceCard
-              icon={ICON_MAP[iconType]}
-              key={balance.leave_type}
-              label={balance.leave_type}
-              progress={progress}
-              progressColor={getProgressColor(balance.leave_type)}
-              sub={`${balance.total_days} total · ${balance.used_days} used this year`}
-              unit="days"
-              value={balance.remaining_days}
-            />
-          );
+        return (
+          <BalanceCard
+            icon={ICON_MAP[iconType]}
+            key={balance.leave_type}
+            label={balance.leave_type}
+            progress={progress}
+            progressColor={getProgressColor(balance.leave_type)}
+            sub={`${balance.total_days} total · ${balance.used_days} used this year`}
+            unit="days"
+            value={balance.remaining_days}
+          />
+        );
       })}
     </div>
-  )
+  );
 }
 
 function getIconType(leaveType: string): string {
-  return leaveType.toLowerCase().includes("sick") ? "sick" :"pto";
+  return leaveType.toLowerCase().includes("sick") ? "sick" : "pto";
 }
 
 function getProgressColor(leaveType: string) {
-  return leaveType.toLowerCase().includes("sick") ? "blue" :"teal";
+  return leaveType.toLowerCase().includes("sick") ? "blue" : "teal";
 }
