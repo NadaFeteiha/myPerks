@@ -1,3 +1,12 @@
+export function ChartsSectionSkeleton() {
+  return (
+    <div className="mb-5 grid grid-cols-2 gap-2.5">
+      <ChartSkeleton />
+      <ChartSkeleton />
+    </div>
+  );
+}
+
 function ChartSkeleton() {
   return (
     <div className="rounded-xl border border-border bg-white p-4 dark:bg-card">
@@ -15,11 +24,4 @@ function ChartSkeleton() {
   );
 }
 
-export function ChartsSectionSkeleton() {
-  return (
-    <div className="mb-5 grid grid-cols-2 gap-2.5">
-      <ChartSkeleton />
-      <ChartSkeleton />
-    </div>
-  );
-}
+

@@ -33,6 +33,7 @@ export async function BalanceCardsSection() {
 
         return (
           <BalanceCard
+            // eslint-disable-next-line security/detect-object-injection
             icon={ICON_MAP[iconType]}
             key={balance.leave_type}
             label={balance.leave_type}
