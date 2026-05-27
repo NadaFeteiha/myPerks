@@ -1,24 +1,3 @@
-"""
-myPerks — Chat endpoint
-backend/api/chat.py
-
-POST /chat
-    - Requires a valid Clerk JWT (get_current_user).
-    - Resolves the JWT to an Employee row; 404 if not registered yet.
-    - Optionally accepts a conversation_id to continue an existing conversation.
-    If omitted, a new Conversation row is created.
-    - Loads the full message history for the conversation and injects it into
-    the agent so multi-turn context is preserved.
-    - Streams the agent's answer token-by-token as Server-Sent Events.
-    - After the stream is exhausted, persists both the user message and the
-    assistant reply to the messages table.
-
-SSE event format:
-    data: {"conversation_id": <int>}   ← first event, always sent
-    data: {"text": "<token>"}           ← one per token from the LLM
-    data: [DONE]                        ← signals end of stream
-"""
-
 from __future__ import annotations
 
 import json
@@ -77,16 +56,6 @@ async def chat(
     body: ChatRequest,
     employee: Employee = Depends(get_current_employee),  # noqa: B008
 ) -> StreamingResponse:
-    """
-    Stream the agent's answer as SSE.
-
-    Flow:
-        1. Find or create a Conversation row.
-        2. Load the conversation's message history from the DB.
-        3. Run the LangGraph agent with full history for multi-turn context.
-        4. Stream tokens to the client.
-        5. After streaming, persist the new user + assistant messages.
-    """
     employee_id = cast(int, employee.id)
 
     # ── 1. Resolve or create conversation + load history ───────────────────────
@@ -107,6 +76,7 @@ async def chat(
                 )
         else:
             conversation = Conversation(employee_id=employee_id)
+            conversation.messages = []
             session.add(conversation)
             await session.flush()  # assigns conversation.id
 
