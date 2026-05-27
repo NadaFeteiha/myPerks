@@ -5,8 +5,8 @@ export function ChartSkeleton() {
             <div className="flex h-48 items-end justify-around gap-2 pt-4">
                 {[60, 90, 45, 75, 55, 80].map((h, i) => (
                     <div
-                        key={i}
                         className="w-full animate-pulse rounded-t bg-muted"
+                        key={i}
                         style={{ height: `${h}%` }}
                     />
                 ))}

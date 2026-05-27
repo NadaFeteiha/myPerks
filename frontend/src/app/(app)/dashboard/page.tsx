@@ -1,10 +1,10 @@
 import { Suspense } from "react";
 
 import { AIAssistantPromo } from "@/components/dashboard/ai-assistant-promo";
-import { BalanceCardsSection } from "@/components/dashboard/balance-cards-section";
 import { BalanceCardsSkeleton } from "@/components/dashboard/balance-card-skeleton";
-import { ChartsSection } from "@/components/dashboard/charts-section";
+import { BalanceCardsSection } from "@/components/dashboard/balance-cards-section";
 import { ChartsSectionSkeleton } from "@/components/dashboard/chart-skeleton";
+import { ChartsSection } from "@/components/dashboard/charts-section";
 import { HeroBanner } from "@/components/dashboard/hero-banner";
 
 export const metadata = {

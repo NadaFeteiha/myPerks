@@ -1,6 +1,6 @@
 "use client";
 
-import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip, Legend } from "recharts";
+import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 
 import type{ RequestHistoryItem } from "@/lib/api";
 
@@ -17,14 +17,6 @@ const COLORS = [
     "#0f6e56", // brand-teal-600
 ];
 
-function aggregateByType(items: RequestHistoryItem[]) {
-    const counts: Record<string, number> = {};
-    for (const item of items) {
-        counts[item.type] = (counts[item.type] ?? 0) + 1;
-    }
-    return Object.entries(counts).map(([name, value]) => ({ name, value }));
-}
-
 export function RequestsPieChart({ data }: Props) {
     if (!data.length) {
         return (
@@ -40,42 +32,44 @@ export function RequestsPieChart({ data }: Props) {
         <ResponsiveContainer height={200} width="100%">
             <PieChart>
                 <Pie
-                    data={chartData}
                     cx="50%"
                     cy="50%"
+                    data={chartData}
+                    dataKey="value"
                     innerRadius={50}
                     outerRadius={80}
                     paddingAngle={3}
-                    dataKey="value"
-                >
+                    >
                     {chartData.map((_, index) => (
                         <Cell
-                            key={`cell-${index}`}
-                            // eslint-disable-next-line security/detect-object-injection
-                            fill={COLORS[index % COLORS.length]}
+                        fill={COLORS[index % COLORS.length]}
+                        key={`cell-${index}`}
                         />
                     ))}
                 </Pie>
                 <Tooltip
-                    contentStyle={{
-                        background: "var(--card)",
-                        border: "1px solid var(--border)",
-                        borderRadius: "8px",
-                        fontSize: "12px",
-                    }}
-                    labelStyle={{ color: "var(--foreground)", fontWeight: 600 }}
+                    contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "8px", fontSize: "12px" }}
                     itemStyle={{ color: "var(--muted-foreground)" }}
+                    labelStyle={{ color: "var(--foreground)", fontWeight: 600 }}
                 />
                 <Legend
-                    iconType="circle"
-                    iconSize={8}
                     formatter={(value) => (
                         <span style={{ color: "var(--muted-foreground)", fontSize: "11px" }}>
                             {value}
                         </span>
                     )}
+                    iconSize={8}
+                    iconType="circle"
                 />
             </PieChart>
         </ResponsiveContainer>
     );
+}
+
+function aggregateByType(items: RequestHistoryItem[]) {
+    const counts: Record<string, number> = {};
+    for (const item of items) {
+        counts[item.type] = (counts[item.type] ?? 0) + 1;
+    }
+    return Object.entries(counts).map(([name, value]) => ({ name, value }));
 }

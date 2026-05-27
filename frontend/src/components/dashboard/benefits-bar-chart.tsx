@@ -33,33 +33,28 @@ export function BenefitsBarChart({ data }: Props) {
 
     return (
         <ResponsiveContainer height={200} width="100%">
-            <BarChart barSize={24} data={chartData} barGap={4}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+            <BarChart barGap={4} barSize={24} data={chartData}>
+                <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
                 <XAxis
+                    axisLine={false}
                     dataKey="name"
                     tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
-                    axisLine={false}
                     tickLine={false}
                 />
                 <YAxis
-                    tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
                     axisLine={false}
+                    tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
                     tickLine={false}
                     width={28}
                 />
                 <Tooltip
-                    contentStyle={{
-                        background: "var(--card)",
-                        border: "1px solid var(--border)",
-                        borderRadius: "8px",
-                        fontSize: "12px",
-                    }}
-                    labelStyle={{ color: "var(--foreground)", fontWeight: 600 }}
-                    itemStyle={{ color: "var(--muted-foreground)" }}
+                    contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "8px", fontSize: "12px" }}
                     cursor={{ fill: "var(--muted)", opacity: 0.4 }}
+                    itemStyle={{ color: "var(--muted-foreground)" }}
+                    labelStyle={{ color: "var(--foreground)", fontWeight: 600 }}
                 />
-                <Bar dataKey="used" name="Used" fill="#534ab7" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="remaining" name="Remaining" fill="#5dcaa5" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="used" fill="#534ab7" name="Used" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="remaining" fill="#5dcaa5" name="Remaining" radius={[4, 4, 0, 0]} />
             </BarChart>
         </ResponsiveContainer>
     )
