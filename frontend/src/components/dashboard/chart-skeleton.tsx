@@ -1,4 +1,4 @@
-export function ChartSkeleton() {
+function ChartSkeleton() {
   return (
     <div className="rounded-xl border border-border bg-white p-4 dark:bg-card">
       <div className="mb-3 h-2.5 w-24 animate-pulse rounded-full bg-muted" />
