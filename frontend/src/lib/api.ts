@@ -2,7 +2,8 @@
 
 import { auth } from "@clerk/nextjs/server";
 
-const BACKEND_PREFIX = "/api/backend";
+const APP_URL = typeof window === "undefined" ? "http://localhost:3000" : "";
+const BACKEND_PREFIX = `${APP_URL}/api/backend`;
 
 export interface BenefitsSummaryResponse {
   summary: BenefitSummaryItem[];
