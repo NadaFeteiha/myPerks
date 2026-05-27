@@ -9,14 +9,6 @@ const ICON_MAP: Record<string, React.ReactNode> = {
   sick: <Stethoscope className="h-4 w-4 text-blue-500" />,
 };
 
-function getIconType(leaveType: string): string {
-  return leaveType.toLowerCase().includes("sick") ? "sick" :"pto";
-}
-
-function getProgressColor(leaveType: string) {
-  return leaveType.toLowerCase().includes("sick") ? "blue" :"teal";
-}
-
 export async function BalanceCardsSection() {
   const data = await api.getVacationBalance();
 
@@ -51,4 +43,12 @@ export async function BalanceCardsSection() {
       })}
     </div>
   )
+}
+
+function getIconType(leaveType: string): string {
+  return leaveType.toLowerCase().includes("sick") ? "sick" :"pto";
+}
+
+function getProgressColor(leaveType: string) {
+  return leaveType.toLowerCase().includes("sick") ? "blue" :"teal";
 }
