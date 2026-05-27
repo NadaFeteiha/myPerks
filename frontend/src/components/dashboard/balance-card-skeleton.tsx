@@ -1,3 +1,13 @@
+export function BalanceCardsSkeleton() {
+  return (
+    <div className="mb-5 grid grid-cols-3 gap-2.5">
+      <BalanceCardSkeleton />
+      <BalanceCardSkeleton />
+      <BalanceCardSkeleton />
+    </div>
+  );
+}
+
 function BalanceCardSkeleton() {
   return (
     <div className="rounded-xl border border-border bg-white p-4 dark:bg-card">
@@ -10,16 +20,6 @@ function BalanceCardSkeleton() {
       <div className="mt-3 h-1 overflow-hidden rounded-full bg-surface-3">
         <div className="h-full w-1/2 animate-pulse rounded-full bg-muted" />
       </div>
-    </div>
-  );
-}
-
-export function BalanceCardsSkeleton() {
-  return (
-    <div className="mb-5 grid grid-cols-3 gap-2.5">
-      <BalanceCardSkeleton />
-      <BalanceCardSkeleton />
-      <BalanceCardSkeleton />
     </div>
   );
 }
