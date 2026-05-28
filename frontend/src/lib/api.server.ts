@@ -1,10 +1,5 @@
 import { auth } from "@clerk/nextjs/server";
 
-const BACKEND_PREFIX =
-  typeof window === "undefined"
-    ? `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"}`
-    : "/api/backend";
-
 export interface BenefitsSummaryResponse {
   summary: BenefitSummaryItem[];
   year: number;
@@ -55,7 +50,8 @@ export interface VacationBalanceResponse {
 
 async function apiFetch<T>(path: string): Promise<T> {
   const headers = await getAuthHeader();
-  const response = await fetch(`${BACKEND_PREFIX}${path}`, {
+
+  const response = await fetch(`${getBackendPrefix()}${path}`, {
     cache: "no-store",
     headers: { "Content-Type": "application/json", ...headers },
   });
@@ -69,6 +65,14 @@ async function getAuthHeader(): Promise<{ Authorization: string }> {
   const { getToken } = await auth();
   const token = await getToken({ template: "myperks-dev" });
   return { Authorization: `Bearer ${token}` };
+}
+
+function getBackendPrefix(): string {
+  if (typeof window !== "undefined") return "/api/backend";
+  // Server components: call Render directly — avoids routing through the
+  // Vercel proxy which re-runs Clerk middleware and drops the auth header.
+  const directUrl = process.env.BACKEND_URL ?? process.env.NEXT_PUBLIC_API_URL;
+  return directUrl ?? "http://localhost:8000";
 }
 
 export const api = {

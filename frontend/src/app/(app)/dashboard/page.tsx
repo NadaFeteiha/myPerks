@@ -1,7 +1,11 @@
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
 
 import { AIAssistantPromo } from "@/components/dashboard/ai-assistant-promo";
+import { BalanceCardsSkeleton } from "@/components/dashboard/balance-card-skeleton";
 import { BalanceCardsSection } from "@/components/dashboard/balance-cards-section";
+import { ChartsSectionSkeleton } from "@/components/dashboard/chart-skeleton";
+import { ChartsSection } from "@/components/dashboard/charts-section";
 import { HeroBanner } from "@/components/dashboard/hero-banner";
 import { api } from "@/lib/api.server";
 
@@ -28,7 +32,15 @@ export default async function DashboardPage() {
       <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.07em] text-muted-foreground">
         Leave balances
       </p>
-      <BalanceCardsSection />
+      <Suspense fallback={<BalanceCardsSkeleton />}>
+        <BalanceCardsSection />
+      </Suspense>
+      <p className="mb-3 text-[10px] font-semibold uppercaes tracking-[0.07em] text-muted-foreground">
+        Benefits overview
+      </p>
+      <Suspense fallback={<ChartsSectionSkeleton />}>
+        <ChartsSection />
+      </Suspense>
       <AIAssistantPromo />
     </div>
   );

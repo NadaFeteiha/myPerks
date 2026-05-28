@@ -33,7 +33,7 @@ export function AssistantClient() {
       try {
         const token = await getToken();
         if (!token) return;
-        await fetch("/api/backend/employees/me", {
+        const res = await fetch("/api/backend/employees/me", {
           body: JSON.stringify({
             department: null,
             email: user.primaryEmailAddress?.emailAddress ?? "",
@@ -45,8 +45,15 @@ export function AssistantClient() {
           },
           method: "POST",
         });
-      } catch {
-        // Non-critical — chat will show a clearer error if needed
+        if (!res.ok) {
+          throw new Error(`Registration returned ${res.status}`);
+        }
+      } catch (err) {
+        setError(
+          err instanceof Error
+            ? `Registration failed: ${err.message}`
+            : "Could not register your account. Please refresh and try again.",
+        );
       }
     })();
   }, [user, getToken]);
