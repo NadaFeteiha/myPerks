@@ -33,7 +33,7 @@ export function AssistantClient() {
       try {
         const token = await getToken();
         if (!token) return;
-        await fetch("/api/backend/employees/me", {
+        const res = await fetch("/api/backend/employees/me", {
           body: JSON.stringify({
             department: null,
             email: user.primaryEmailAddress?.emailAddress ?? "",
@@ -45,6 +45,9 @@ export function AssistantClient() {
           },
           method: "POST",
         });
+        if (!res.ok) {
+          throw new Error(`Registration returned ${res.status}`);
+        }
       } catch (err) {
         setError(
           err instanceof Error
