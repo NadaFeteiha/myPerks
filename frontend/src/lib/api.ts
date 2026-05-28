@@ -2,9 +2,6 @@
 
 import { auth } from "@clerk/nextjs/server";
 
-const APP_URL = typeof window === "undefined" ? "http://localhost:3000" : "";
-const BACKEND_PREFIX = `${APP_URL}/api/backend`;
-
 export interface BenefitsSummaryResponse {
   summary: BenefitSummaryItem[];
   year: number;
@@ -45,12 +42,22 @@ export interface VacationBalanceResponse {
   year: number;
 }
 
+export const api = {
+  getBenefitsSummary: () =>
+    apiFetch<BenefitsSummaryResponse>("/me/benefits-summary"),
+
+  getRequestHistory: (page = 1, pageSize = 10) =>
+    apiFetch<RequestHistoryResponse>(
+      `/me/requests?page=${page}&page_size=${pageSize}`,
+    ),
+
+  getVacationBalance: () => apiFetch<VacationBalanceResponse>("/me/vacation"),
+};
+
 async function apiFetch<T>(path: string): Promise<T> {
   const headers = await getAuthHeader();
 
-  const response = await fetch(`${BACKEND_PREFIX}${path}`, {
-    // next.revalidate = 0 disables caching — dashboard data should
-    // always be fresh, not served from Next.js cache.
+  const response = await fetch(`${getBackendPrefix()}${path}`, {
     cache: "no-store",
     headers: {
       "Content-Type": "application/json",
@@ -66,21 +73,15 @@ async function apiFetch<T>(path: string): Promise<T> {
 }
 
 async function getAuthHeader(): Promise<{ Authorization: string }> {
-  // auth() is a Clerk server-side helper — reads the JWT from the
-  // current request session without any extra configuration.
   const { getToken } = await auth();
   const token = await getToken();
   return { Authorization: `Bearer ${token}` };
 }
 
-export const api = {
-  getBenefitsSummary: () =>
-    apiFetch<BenefitsSummaryResponse>("/me/benefits-summary"),
-
-  getRequestHistory: (page = 1, pageSize = 10) =>
-    apiFetch<RequestHistoryResponse>(
-      `/me/requests?page=${page}&page_size=${pageSize}`,
-    ),
-
-  getVacationBalance: () => apiFetch<VacationBalanceResponse>("/me/vacation"),
-};
+function getBackendPrefix(): string {
+  if (typeof window !== "undefined") return "/api/backend";
+  // Server components: call Render directly — avoids routing through the
+  // Vercel proxy which re-runs Clerk middleware and drops the auth header.
+  const directUrl = process.env.BACKEND_URL ?? process.env.NEXT_PUBLIC_API_URL;
+  return directUrl ?? "http://localhost:8000";
+}
