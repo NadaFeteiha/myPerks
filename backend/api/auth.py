@@ -46,7 +46,7 @@ async def get_jwks(force_refresh: bool = False) -> dict[str, Any]:
     return cast(dict[str, Any], _JWKS_CACHE["keys"])
 
 
-# ── FastAPI dependency ────────────────────────────────────────────────────────
+# ── Shared helpers ────────────────────────────────────────────────────────────
 
 
 def _raise_401(detail: str = "Unauthorized") -> None:
@@ -57,32 +57,17 @@ def _raise_401(detail: str = "Unauthorized") -> None:
     )
 
 
-async def get_current_user(
-    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),  # noqa: B008
-) -> str:
+async def _decode_token(token: str) -> dict[str, Any]:
     """
-    FastAPI dependency — verifies the Clerk JWT and returns clerk_user_id.
+    Verify a Clerk JWT and return the decoded payload.
+    Retries once with a forced JWKS refresh to handle key rotation.
 
-    Usage:
-        @router.get("/protected")
-        async def protected(user_id: str = Depends(get_current_user)):
-            ...
-
-    Raises HTTP 401 if:
-    - Authorization header is missing
-    - Token is malformed, expired, or has an invalid signature
-    - Issuer does not match settings.clerk_issuer
+    Raises HTTP 401 if the token is invalid, expired, or has a bad signature.
     """
-    if credentials is None:
-        _raise_401("Missing authorization header")
-
-    assert credentials is not None  # narrows type for mypy
-    token = credentials.credentials
-
     jwks = await get_jwks()
 
     try:
-        payload = jwt.decode(
+        payload: dict[str, Any] = jwt.decode(
             token,
             jwks,
             algorithms=["RS256"],
@@ -101,9 +86,69 @@ async def get_current_user(
             )
         except JWTError:
             _raise_401("Invalid or expired token")
+            raise  # unreachable — satisfies mypy that payload is always bound
+
+    return payload
+
+
+# ── FastAPI dependencies ──────────────────────────────────────────────────────
+
+
+async def get_current_user(
+    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),  # noqa: B008
+) -> str:
+    """
+    FastAPI dependency — verifies the Clerk JWT and returns clerk_user_id.
+
+    Usage:
+        @router.get("/protected")
+        async def endpoint(user_id: str = Depends(get_current_user)):
+            ...
+
+    Raises HTTP 401 if:
+    - Authorization header is missing
+    - Token is malformed, expired, or has an invalid signature
+    - Issuer does not match settings.clerk_issuer
+    """
+    if credentials is None:
+        _raise_401("Missing authorization header")
+
+    assert credentials is not None  # narrows type for mypy
+    payload = await _decode_token(credentials.credentials)
 
     clerk_user_id: str | None = payload.get("sub")
     if not clerk_user_id:
         _raise_401("Token missing subject claim")
 
     return str(clerk_user_id)
+
+
+async def get_current_user_payload(
+    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),  # noqa: B008
+) -> dict[str, Any]:
+    """
+    FastAPI dependency — verifies the Clerk JWT and returns the full decoded payload.
+
+    Use this instead of get_current_user when you need claims beyond sub,
+    e.g. email and full_name for the onboarding endpoint.
+
+    The payload always contains:
+      sub       — Clerk user ID (always present after verification)
+      email     — from the myperks-dev JWT template (may be absent if misconfigured)
+      full_name — from the myperks-dev JWT template (may be absent if misconfigured)
+
+    Raises HTTP 401 if:
+    - Authorization header is missing
+    - Token is malformed, expired, or has an invalid signature
+    - Issuer does not match settings.clerk_issuer
+    """
+    if credentials is None:
+        _raise_401("Missing authorization header")
+
+    assert credentials is not None  # narrows type for mypy
+    payload = await _decode_token(credentials.credentials)
+
+    if not payload.get("sub"):
+        _raise_401("Token missing subject claim")
+
+    return payload

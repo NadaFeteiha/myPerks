@@ -10,7 +10,7 @@ import {
   YAxis,
 } from "recharts";
 
-import type { BenefitSummaryItem } from "@/lib/api";
+import type { BenefitSummaryItem } from "@/lib/api.server";
 
 type Props = {
   data: BenefitSummaryItem[];

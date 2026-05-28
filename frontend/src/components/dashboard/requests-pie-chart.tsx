@@ -9,7 +9,7 @@ import {
   Tooltip,
 } from "recharts";
 
-import type { RequestHistoryItem } from "@/lib/api";
+import type { RequestHistoryItem } from "@/lib/api.server";
 
 type Props = {
   data: RequestHistoryItem[];

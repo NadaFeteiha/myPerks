@@ -1,5 +1,3 @@
-// frontend/src/lib/api.ts
-
 import { auth } from "@clerk/nextjs/server";
 
 export interface BenefitsSummaryResponse {
@@ -22,6 +20,14 @@ export interface LeaveBalance {
   used_days: number;
 }
 
+export interface OnboardResponse {
+  clerk_user_id: string;
+  department: null | string;
+  email: null | string;
+  id: number;
+  name: null | string;
+}
+
 export interface RequestHistoryItem {
   body: null | string;
   created_at: string;
@@ -42,39 +48,22 @@ export interface VacationBalanceResponse {
   year: number;
 }
 
-export const api = {
-  getBenefitsSummary: () =>
-    apiFetch<BenefitsSummaryResponse>("/me/benefits-summary"),
-
-  getRequestHistory: (page = 1, pageSize = 10) =>
-    apiFetch<RequestHistoryResponse>(
-      `/me/requests?page=${page}&page_size=${pageSize}`,
-    ),
-
-  getVacationBalance: () => apiFetch<VacationBalanceResponse>("/me/vacation"),
-};
-
 async function apiFetch<T>(path: string): Promise<T> {
   const headers = await getAuthHeader();
 
   const response = await fetch(`${getBackendPrefix()}${path}`, {
     cache: "no-store",
-    headers: {
-      "Content-Type": "application/json",
-      ...headers,
-    },
+    headers: { "Content-Type": "application/json", ...headers },
   });
-
   if (!response.ok) {
     throw new Error(`API error: ${response.status} ${response.statusText}`);
   }
-
   return response.json() as Promise<T>;
 }
 
 async function getAuthHeader(): Promise<{ Authorization: string }> {
   const { getToken } = await auth();
-  const token = await getToken();
+  const token = await getToken({ template: "myperks-dev" });
   return { Authorization: `Bearer ${token}` };
 }
 
@@ -85,3 +74,14 @@ function getBackendPrefix(): string {
   const directUrl = process.env.BACKEND_URL ?? process.env.NEXT_PUBLIC_API_URL;
   return directUrl ?? "http://localhost:8000";
 }
+
+export const api = {
+  getBenefitsSummary: () =>
+    apiFetch<BenefitsSummaryResponse>("/me/benefits-summary"),
+  getMe: () => apiFetch<OnboardResponse>("/employees/me"),
+  getRequestHistory: (page = 1, pageSize = 10) =>
+    apiFetch<RequestHistoryResponse>(
+      `/me/requests?page=${page}&page_size=${pageSize}`,
+    ),
+  getVacationBalance: () => apiFetch<VacationBalanceResponse>("/me/vacation"),
+};

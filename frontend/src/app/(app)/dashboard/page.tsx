@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
 import { AIAssistantPromo } from "@/components/dashboard/ai-assistant-promo";
@@ -6,12 +7,25 @@ import { BalanceCardsSection } from "@/components/dashboard/balance-cards-sectio
 import { ChartsSectionSkeleton } from "@/components/dashboard/chart-skeleton";
 import { ChartsSection } from "@/components/dashboard/charts-section";
 import { HeroBanner } from "@/components/dashboard/hero-banner";
+import { api } from "@/lib/api.server";
 
 export const metadata = {
   title: "Dashboard — MyPerks",
 };
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  try {
+    await api.getMe();
+  } catch (error: unknown) {
+    const isNotFound = error instanceof Error && error.message.includes("404");
+
+    if (isNotFound) {
+      redirect("/onboarding");
+    }
+
+    // Any other error (500, network, etc.) — let the page render,
+    console.error("[MyPerks] GET /me failed:", error);
+  }
   return (
     <div className="flex-1 overflow-y-auto p-6">
       <HeroBanner />

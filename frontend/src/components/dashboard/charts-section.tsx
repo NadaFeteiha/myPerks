@@ -1,4 +1,4 @@
-import { api } from "@/lib/api";
+import { api } from "@/lib/api.server";
 
 import { BenefitsBarChart } from "./benefits-bar-chart";
 import { RequestsPieChart } from "./requests-pie-chart";

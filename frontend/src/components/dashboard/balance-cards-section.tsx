@@ -1,6 +1,6 @@
 import { Plane, Stethoscope } from "lucide-react";
 
-import { api } from "@/lib/api";
+import { api } from "@/lib/api.server";
 
 import { BalanceCard } from "./balance-card";
 
