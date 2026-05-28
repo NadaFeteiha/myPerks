@@ -82,7 +82,6 @@ function getBackendPrefix(): string {
   if (typeof window !== "undefined") return "/api/backend";
   // Server components: call Render directly — avoids routing through the
   // Vercel proxy which re-runs Clerk middleware and drops the auth header.
-  const directUrl =
-    process.env.BACKEND_URL ?? process.env.NEXT_PUBLIC_API_URL;
+  const directUrl = process.env.BACKEND_URL ?? process.env.NEXT_PUBLIC_API_URL;
   return directUrl ?? "http://localhost:8000";
 }
