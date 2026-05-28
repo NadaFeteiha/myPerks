@@ -45,8 +45,12 @@ export function AssistantClient() {
           },
           method: "POST",
         });
-      } catch {
-        // Non-critical — chat will show a clearer error if needed
+      } catch (err) {
+        setError(
+          err instanceof Error
+            ? `Registration failed: ${err.message}`
+            : "Could not register your account. Please refresh and try again.",
+        );
       }
     })();
   }, [user, getToken]);
