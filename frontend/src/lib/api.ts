@@ -2,8 +2,12 @@
 
 import { auth } from "@clerk/nextjs/server";
 
-const APP_URL = typeof window === "undefined" ? "http://localhost:3000" : "";
-const BACKEND_PREFIX = `${APP_URL}/api/backend`;
+function getAppUrl(): string {
+  if (typeof window !== "undefined") return ""; // client-side: use relative URL
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`; // Vercel auto-injects this
+  return "http://localhost:3000"; // local dev
+}
+const BACKEND_PREFIX = `${getAppUrl()}/api/backend`;
 
 export interface BenefitsSummaryResponse {
   summary: BenefitSummaryItem[];
