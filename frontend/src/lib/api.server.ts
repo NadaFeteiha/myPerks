@@ -27,7 +27,6 @@ export interface LeaveBalance {
 
 export interface OnboardResponse {
   clerk_user_id: string;
-  created: boolean;
   department: null | string;
   email: null | string;
   id: number;
@@ -68,14 +67,14 @@ async function apiFetch<T>(path: string): Promise<T> {
 
 async function getAuthHeader(): Promise<{ Authorization: string }> {
   const { getToken } = await auth();
-  const token = await getToken();
+  const token = await getToken({ template: "myperks-dev" });
   return { Authorization: `Bearer ${token}` };
 }
 
 export const api = {
   getBenefitsSummary: () =>
     apiFetch<BenefitsSummaryResponse>("/me/benefits-summary"),
-  getMe: () => apiFetch<OnboardResponse>("/me"),
+  getMe: () => apiFetch<OnboardResponse>("/employees/me"),
   getRequestHistory: (page = 1, pageSize = 10) =>
     apiFetch<RequestHistoryResponse>(
       `/me/requests?page=${page}&page_size=${pageSize}`,

@@ -7,9 +7,8 @@ import { useApi } from "@/lib/api.client";
 
 export default function OnboardingPage() {
   const router = useRouter();
-  const api = useApi(); // ← changed
+  const api = useApi();
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
   const [department, setDepartment] = useState("");
   const [error, setError] = useState<null | string>(null);
   const [loading, setLoading] = useState(false);
@@ -22,7 +21,6 @@ export default function OnboardingPage() {
     try {
       await api.onboard({
         department: department || undefined,
-        email,
         name,
       });
       router.push("/dashboard");
@@ -56,21 +54,6 @@ export default function OnboardingPage() {
               required
               type="text"
               value={name}
-            />
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-sm font-medium" htmlFor="email">
-              Work email
-            </label>
-            <input
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-              id="email"
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="alice@company.com"
-              required
-              type="email"
-              value={email}
             />
           </div>
 
