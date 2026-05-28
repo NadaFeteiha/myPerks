@@ -2,12 +2,14 @@
 
 import { auth } from "@clerk/nextjs/server";
 
-function getAppUrl(): string {
-  if (typeof window !== "undefined") return ""; // client-side: use relative URL
-  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`; // Vercel auto-injects this
-  return "http://localhost:3000"; // local dev
+function getBackendPrefix(): string {
+  if (typeof window !== "undefined") return "/api/backend"; // browser: relative, goes through Next.js proxy
+  // Server components: call Render directly — avoids routing through Vercel proxy
+  // which can strip or fail to forward auth headers in server-to-server requests.
+  const directUrl =
+    process.env.BACKEND_URL ?? process.env.NEXT_PUBLIC_API_URL;
+  return directUrl ?? "http://localhost:8000";
 }
-const BACKEND_PREFIX = `${getAppUrl()}/api/backend`;
 
 export interface BenefitsSummaryResponse {
   summary: BenefitSummaryItem[];
@@ -52,7 +54,7 @@ export interface VacationBalanceResponse {
 async function apiFetch<T>(path: string): Promise<T> {
   const headers = await getAuthHeader();
 
-  const response = await fetch(`${BACKEND_PREFIX}${path}`, {
+  const response = await fetch(`${getBackendPrefix()}${path}`, {
     // next.revalidate = 0 disables caching — dashboard data should
     // always be fresh, not served from Next.js cache.
     cache: "no-store",
