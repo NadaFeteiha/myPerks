@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
 import { UploadCloud } from "lucide-react";
+import React, { useState } from "react";
+
 import { useUploadThing } from "@/lib/uploadthing";
 
 type UploadSectionProps = {
@@ -10,11 +11,10 @@ type UploadSectionProps = {
 
 export function UploadSection({ onUploadComplete }: UploadSectionProps) {
     const [progress, setProgress] = useState(0);
-    const [error, setError] = useState<string | null>(null);
+    const [error, setError] = useState<null | string>(null);
     const [isUploading, setIsUploading] = useState(false);
 
     const { startUpload } = useUploadThing("pdfUploader", {
-        onUploadProgress: (p) => setProgress(p),
         onClientUploadComplete: () => {
             setIsUploading(false);
             setProgress(0);
@@ -25,7 +25,8 @@ export function UploadSection({ onUploadComplete }: UploadSectionProps) {
             setIsUploading(false);
             setProgress(0);
             setError(err.message);
-        }
+        },
+        onUploadProgress: (p) => setProgress(p),
     });
 
     const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {

@@ -1,14 +1,14 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@clerk/nextjs";
+import React, { useCallback, useEffect, useState } from "react";
 
 import { DocumentListSection } from "@/components/upload/document-list-section";
 import { UploadSection } from "@/components/upload/upload-section";
 
 type Document = {
-    id: number;
     filename: string;
+    id: number;
     uploaded_at: string;
 };
 
@@ -16,7 +16,7 @@ export default function UploadPage() {
     const { getToken } = useAuth();
     const [documents, setDocuments] = useState<Document[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    const [error, setError] = useState<null | string>(null);
 
     const fetchDocuments = useCallback(async () => {
         try {
@@ -27,7 +27,7 @@ export default function UploadPage() {
             if (!res.ok) throw new Error("Failed to fetch documents");
             const data = await res.json();
             setDocuments(data.documents);
-        } catch (err) {
+        } catch (_err) {
             setError("Could not load documents.");
         } finally {
             setIsLoading(false);
@@ -35,6 +35,7 @@ export default function UploadPage() {
     }, [getToken]);
 
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         void fetchDocuments();
     }, [fetchDocuments]);
 

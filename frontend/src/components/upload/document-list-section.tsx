@@ -3,8 +3,8 @@
 import { DocumentRow } from "./document-row";
 
 type Document = {
-    id: number;
     filename: string;
+    id: number;
     uploaded_at: string;
 }
 
@@ -25,8 +25,8 @@ export function DocumentListSection({ documents }: DocumentListSectionProps) {
         <div className="flex flex-col gap-2.5">
             {documents.map((doc) => (
                 <DocumentRow
-                    key={doc.id}
                     filename={doc.filename}
+                    key={doc.id}
                     uploaded_at={doc.uploaded_at}
                 />
             ))}
