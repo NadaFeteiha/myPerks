@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import datetime
-from typing import Any, cast
+from typing import cast
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy import select
 
-from api.auth import get_current_user, get_current_user_payload
+from api.auth import get_current_user
 from db.models import Employee, VacationBalance
 from db.session import AsyncSessionLocal
 
@@ -16,6 +16,7 @@ router = APIRouter(prefix="/employees", tags=["employees"])
 
 class RegisterRequest(BaseModel):
     name: str
+    email: str
     department: str | None = None
 
 
@@ -68,24 +69,14 @@ async def get_me(
 )
 async def register_me(
     body: RegisterRequest,
-    payload: dict[str, Any] = Depends(get_current_user_payload),  # noqa: B008
+    clerk_user_id: str = Depends(get_current_user),  # noqa: B008
 ) -> EmployeeResponse:
     """
     Creates a new Employee row for the authenticated Clerk user.
-    Email is pulled from the verified JWT — not the request body.
+    Email is supplied in the request body (no JWT template required).
     Also seeds default vacation balances for the current year.
     Returns 409 if the employee already exists.
     """
-
-    clerk_user_id: str = str(payload["sub"])
-    email: str | None = payload.get("email")
-
-    if not email:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email claim missing from token. Check Clerk JWT template.",
-        )
-
     async with AsyncSessionLocal() as session:
         existing = await session.scalar(
             select(Employee).where(Employee.clerk_user_id == clerk_user_id)
@@ -100,7 +91,7 @@ async def register_me(
         employee = Employee(
             clerk_user_id=clerk_user_id,
             name=body.name,
-            email=email,
+            email=body.email,
             department=body.department,
         )
         session.add(employee)
