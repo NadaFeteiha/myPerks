@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import { FileText } from "lucide-react";
 
@@ -15,7 +15,9 @@ export function DocumentRow({ filename, uploaded_at }: DocumentRowProps) {
         <p className="truncate text-[13px] font-medium text-foreground">
           {filename}
         </p>
-        <p className="mt-0.5 text-[11px] text-muted-foreground">{uploaded_at}</p>
+        <p className="mt-0.5 text-[11px] text-muted-foreground">
+          {uploaded_at}
+        </p>
       </div>
     </div>
   );
