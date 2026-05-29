@@ -95,7 +95,7 @@ async def register_me(
                 await session.refresh(existing)
                 return EmployeeResponse(
                     id=cast(int, existing.id),
-                    clerk_user_id=cast(str, existing.clerk_user_id),
+                    clerk_user_id=clerk_user_id,
                     name=cast(str, existing.name),
                     email=cast(str, existing.email),
                     department=cast("str | None", existing.department),
