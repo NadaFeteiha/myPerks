@@ -63,6 +63,7 @@ class IngestResponse(BaseModel):
     status: str  # "ingested" | "duplicate"
     document_id: int
 
+
 class DocumentResponse(BaseModel):
     id: int
     filename: str
@@ -71,6 +72,7 @@ class DocumentResponse(BaseModel):
 
 class DocumentListResponse(BaseModel):
     documents: list[DocumentResponse]
+
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -201,6 +203,7 @@ async def upload_callback(
     logger.info("Ingestion complete document_id=%d", document.id)
     return IngestResponse(status="ingested", document_id=document.id)
 
+
 @router.get(
     "/documents",
     response_model=DocumentListResponse,
@@ -209,7 +212,7 @@ async def upload_callback(
 )
 async def list_documents(
     clerk_user_id: str = Depends(get_current_user),
-    session: AsyncSession = Depends(get_session), # noqa: B008
+    session: AsyncSession = Depends(get_session),  # noqa: B008
 ) -> DocumentListResponse:
     employee = await _resolve_employee(clerk_user_id, session)
     if employee is None:
