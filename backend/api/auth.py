@@ -1,3 +1,4 @@
+import logging
 import time
 from typing import Any, cast
 
@@ -7,6 +8,8 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 
 from settings import settings
+
+logger = logging.getLogger(__name__)
 
 # ── JWKS cache ────────────────────────────────────────────────────────────────
 
@@ -74,7 +77,13 @@ async def _decode_token(token: str) -> dict[str, Any]:
             issuer=settings.clerk_issuer,
             options={"verify_aud": False},
         )
-    except JWTError:
+    except JWTError as first_err:
+        logger.warning("JWT decode failed (first attempt): %s", first_err)
+        logger.warning(
+            "clerk_issuer=%r  clerk_jwks_url=%r",
+            settings.clerk_issuer,
+            settings.clerk_jwks_url,
+        )
         jwks = await get_jwks(force_refresh=True)
         try:
             payload = jwt.decode(
@@ -84,7 +93,8 @@ async def _decode_token(token: str) -> dict[str, Any]:
                 issuer=settings.clerk_issuer,
                 options={"verify_aud": False},
             )
-        except JWTError:
+        except JWTError as second_err:
+            logger.error("JWT decode failed (after JWKS refresh): %s", second_err)
             _raise_401("Invalid or expired token")
             raise  # unreachable — satisfies mypy that payload is always bound
 

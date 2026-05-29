@@ -20,6 +20,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   description:
     "AI-powered employee benefits and HR assistant. Ask questions, check balances, and submit requests in plain language.",
+  icons: { icon: "/favicon.svg" },
   title: "MyPerks — HR Assistant",
 };
 

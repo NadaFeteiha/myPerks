@@ -63,7 +63,8 @@ async function apiFetch<T>(path: string): Promise<T> {
 
 async function getAuthHeader(): Promise<{ Authorization: string }> {
   const { getToken } = await auth();
-  const token = await getToken({ template: "myperks-dev" });
+  const token = await getToken();
+  if (!token) throw new Error("Not authenticated");
   return { Authorization: `Bearer ${token}` };
 }
 
