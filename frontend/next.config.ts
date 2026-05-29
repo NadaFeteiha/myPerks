@@ -6,15 +6,17 @@ const nextConfig: NextConfig = {
   experimental: {
     authInterrupts: true,
   },
-  async rewrites() {
-    const backendUrl =
-      process.env.BACKEND_URL ??
-      process.env.NEXT_PUBLIC_API_URL ??
-      "http://localhost:8000";
+  async redirects() {
     return [
       {
-        destination: `${backendUrl}/:path*`,
-        source: "/api/backend/:path*",
+        destination: "/favicon.svg",
+        permanent: false,
+        source: "/favicon.png",
+      },
+      {
+        destination: "/favicon.svg",
+        permanent: false,
+        source: "/favicon.ico",
       },
     ];
   },

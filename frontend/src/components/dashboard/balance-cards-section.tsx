@@ -1,16 +1,35 @@
-import { Plane, Stethoscope } from "lucide-react";
+"use client";
 
-import { api } from "@/lib/api.server";
+import { useAuth } from "@clerk/nextjs";
+import { Plane, Stethoscope } from "lucide-react";
+import { useEffect, useState } from "react";
+
+import type { VacationBalanceResponse } from "@/lib/api.server";
 
 import { BalanceCard } from "./balance-card";
+import { BalanceCardsSkeleton } from "./balance-card-skeleton";
 
 const ICON_MAP: Record<string, React.ReactNode> = {
   pto: <Plane className="h-4 w-4 text-brand-purple-600" />,
   sick: <Stethoscope className="h-4 w-4 text-blue-500" />,
 };
 
-export async function BalanceCardsSection() {
-  const data = await api.getVacationBalance();
+export function BalanceCardsSection() {
+  const { getToken } = useAuth();
+  const [data, setData] = useState<null | VacationBalanceResponse>(null);
+
+  useEffect(() => {
+    void (async () => {
+      const token = await getToken();
+      if (!token) return;
+      const res = await fetch("/api/backend/me/vacation", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) setData((await res.json()) as VacationBalanceResponse);
+    })();
+  }, [getToken]);
+
+  if (!data) return <BalanceCardsSkeleton />;
 
   if (!data.balances.length) {
     return (

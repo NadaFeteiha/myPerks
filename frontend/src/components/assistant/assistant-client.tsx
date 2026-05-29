@@ -18,13 +18,12 @@ export function AssistantClient() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<null | string>(null);
+  // Chat is locked until the employee row is confirmed to exist
+  const [isRegistered, setIsRegistered] = useState(false);
 
-  // Persisted across turns within the same conversation session
   const conversationIdRef = useRef<null | number>(null);
-  // Ensure only one registration attempt per mount
   const registeredRef = useRef(false);
 
-  // Auto-register the employee row on first load so POST /chat never 404s
   useEffect(() => {
     if (!user || registeredRef.current) return;
     registeredRef.current = true;
@@ -33,6 +32,7 @@ export function AssistantClient() {
       try {
         const token = await getToken();
         if (!token) return;
+
         const res = await fetch("/api/backend/employees/me", {
           body: JSON.stringify({
             department: null,
@@ -45,9 +45,20 @@ export function AssistantClient() {
           },
           method: "POST",
         });
-        if (!res.ok) {
-          throw new Error(`Registration returned ${res.status}`);
+
+        // 201 = created, 409 = already exists — both mean ready to chat
+        if (res.ok || res.status === 409) {
+          setIsRegistered(true);
+          return;
         }
+
+        const detail = await res
+          .json()
+          .then((j: { detail?: string }) => j.detail)
+          .catch(() => undefined);
+        setError(
+          `Could not set up your account (${res.status}${detail ? `: ${detail}` : ""}). Please refresh.`,
+        );
       } catch (err) {
         setError(
           err instanceof Error
@@ -99,7 +110,6 @@ export function AssistantClient() {
           token,
         });
 
-        // Mark streaming done
         setMessages((prev) =>
           prev.map((m) =>
             m.id === assistantId ? { ...m, streaming: false } : m,
@@ -109,7 +119,6 @@ export function AssistantClient() {
         const message =
           err instanceof Error ? err.message : "Something went wrong";
         setError(message);
-        // Remove the empty placeholder on error
         setMessages((prev) => prev.filter((m) => m.id !== assistantId));
       } finally {
         setIsStreaming(false);
@@ -161,7 +170,10 @@ export function AssistantClient() {
         </p>
       )}
 
-      <ChatInput disabled={isStreaming} onSendMessage={handleSendMessage} />
+      <ChatInput
+        disabled={isStreaming || !isRegistered}
+        onSendMessage={handleSendMessage}
+      />
     </div>
   );
 }

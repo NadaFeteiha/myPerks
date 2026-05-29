@@ -28,7 +28,13 @@ export async function streamChat({
   });
 
   if (!res.ok) {
-    throw new Error(`Chat request failed: ${res.status} ${res.statusText}`);
+    const detail = await res
+      .json()
+      .then((j: { detail?: string }) => j.detail)
+      .catch(() => undefined);
+    throw new Error(
+      `Chat request failed: ${res.status}${detail ? ` – ${detail}` : ` ${res.statusText}`}`,
+    );
   }
 
   if (!res.body) {

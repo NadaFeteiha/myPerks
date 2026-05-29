@@ -1,5 +1,6 @@
 "use client";
 
+import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -8,6 +9,7 @@ import { useApi } from "@/lib/api.client";
 export default function OnboardingPage() {
   const router = useRouter();
   const api = useApi();
+  const { user } = useUser();
   const [name, setName] = useState("");
   const [department, setDepartment] = useState("");
   const [error, setError] = useState<null | string>(null);
@@ -21,6 +23,7 @@ export default function OnboardingPage() {
     try {
       await api.onboard({
         department: department || undefined,
+        email: user?.primaryEmailAddress?.emailAddress ?? "",
         name,
       });
       router.push("/dashboard");
