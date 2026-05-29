@@ -72,6 +72,7 @@ def _make_session() -> MagicMock:
     session = MagicMock()
     session.__aenter__ = AsyncMock(return_value=session)
     session.__aexit__ = AsyncMock(return_value=False)
+    session.commit = AsyncMock()
     return session
 
 

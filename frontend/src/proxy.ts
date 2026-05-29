@@ -11,7 +11,10 @@ export default clerkMiddleware(async (auth, request) => {
 
 export const config = {
   matcher: [
-    "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
-    "/(api|trpc)(.*)",
+    // Exclude /api/backend/* — those routes proxy to Render which validates
+    // the Clerk JWT itself. Clerk middleware strips the Authorization header,
+    // causing 401s at the backend.
+    "/((?!_next|api/backend|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
+    "/(api(?!/backend)|trpc)(.*)",
   ],
 };

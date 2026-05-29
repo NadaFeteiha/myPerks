@@ -1,8 +1,13 @@
-import { Plane, Stethoscope } from "lucide-react";
+"use client";
 
-import { MOCK_BALANCES } from "@/data/mock/dashboard.mock";
+import { useAuth } from "@clerk/nextjs";
+import { Plane, Stethoscope } from "lucide-react";
+import { useEffect, useState } from "react";
+
+import type { VacationBalanceResponse } from "@/lib/api.server";
 
 import { BalanceCard } from "./balance-card";
+import { BalanceCardsSkeleton } from "./balance-card-skeleton";
 
 const ICON_MAP: Record<string, React.ReactNode> = {
   pto: <Plane className="h-4 w-4 text-brand-purple-600" />,
@@ -10,11 +15,63 @@ const ICON_MAP: Record<string, React.ReactNode> = {
 };
 
 export function BalanceCardsSection() {
+  const { getToken } = useAuth();
+  const [data, setData] = useState<null | VacationBalanceResponse>(null);
+
+  useEffect(() => {
+    void (async () => {
+      const token = await getToken();
+      if (!token) return;
+      const res = await fetch("/api/backend/me/vacation", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) setData((await res.json()) as VacationBalanceResponse);
+    })();
+  }, [getToken]);
+
+  if (!data) return <BalanceCardsSkeleton />;
+
+  if (!data.balances.length) {
+    return (
+      <div className="mb-5 rounded-xl border border-border bg-white p-6 text-center dark:bg-card">
+        <p className="text-[12px] text-muted-foreground">
+          No leave balances found for {data.year}.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="mb-5 grid grid-cols-3 gap-2.5">
-      {MOCK_BALANCES.map((item) => (
-        <BalanceCard key={item.id} {...item} icon={ICON_MAP[item.iconType]} />
-      ))}
+      {data.balances.map((balance) => {
+        const iconType = getIconType(balance.leave_type);
+        const progress =
+          balance.total_days > 0
+            ? Math.round((balance.remaining_days / balance.total_days) * 100)
+            : 0;
+
+        return (
+          <BalanceCard
+            // eslint-disable-next-line security/detect-object-injection
+            icon={ICON_MAP[iconType]}
+            key={balance.leave_type}
+            label={balance.leave_type}
+            progress={progress}
+            progressColor={getProgressColor(balance.leave_type)}
+            sub={`${balance.total_days} total · ${balance.used_days} used this year`}
+            unit="days"
+            value={balance.remaining_days}
+          />
+        );
+      })}
     </div>
   );
+}
+
+function getIconType(leaveType: string): string {
+  return leaveType.toLowerCase().includes("sick") ? "sick" : "pto";
+}
+
+function getProgressColor(leaveType: string) {
+  return leaveType.toLowerCase().includes("sick") ? "blue" : "teal";
 }

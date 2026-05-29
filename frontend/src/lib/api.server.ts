@@ -1,8 +1,4 @@
-// frontend/src/lib/api.ts
-
 import { auth } from "@clerk/nextjs/server";
-
-const BACKEND_PREFIX = "/api/backend";
 
 export interface BenefitsSummaryResponse {
   summary: BenefitSummaryItem[];
@@ -22,6 +18,14 @@ export interface LeaveBalance {
   remaining_days: number;
   total_days: number;
   used_days: number;
+}
+
+export interface OnboardResponse {
+  clerk_user_id: string;
+  department: null | string;
+  email: null | string;
+  id: number;
+  name: null | string;
 }
 
 export interface RequestHistoryItem {
@@ -47,39 +51,38 @@ export interface VacationBalanceResponse {
 async function apiFetch<T>(path: string): Promise<T> {
   const headers = await getAuthHeader();
 
-  const response = await fetch(`${BACKEND_PREFIX}${path}`, {
-    // next.revalidate = 0 disables caching — dashboard data should
-    // always be fresh, not served from Next.js cache.
+  const response = await fetch(`${getBackendPrefix()}${path}`, {
     cache: "no-store",
-    headers: {
-      "Content-Type": "application/json",
-      ...headers,
-    },
+    headers: { "Content-Type": "application/json", ...headers },
   });
-
   if (!response.ok) {
     throw new Error(`API error: ${response.status} ${response.statusText}`);
   }
-
   return response.json() as Promise<T>;
 }
 
 async function getAuthHeader(): Promise<{ Authorization: string }> {
-  // auth() is a Clerk server-side helper — reads the JWT from the
-  // current request session without any extra configuration.
   const { getToken } = await auth();
   const token = await getToken();
+  if (!token) throw new Error("Not authenticated");
   return { Authorization: `Bearer ${token}` };
+}
+
+function getBackendPrefix(): string {
+  if (typeof window !== "undefined") return "/api/backend";
+  // Server components: call Render directly — avoids routing through the
+  // Vercel proxy which re-runs Clerk middleware and drops the auth header.
+  const directUrl = process.env.BACKEND_URL ?? process.env.NEXT_PUBLIC_API_URL;
+  return directUrl ?? "http://localhost:8000";
 }
 
 export const api = {
   getBenefitsSummary: () =>
     apiFetch<BenefitsSummaryResponse>("/me/benefits-summary"),
-
+  getMe: () => apiFetch<OnboardResponse>("/employees/me"),
   getRequestHistory: (page = 1, pageSize = 10) =>
     apiFetch<RequestHistoryResponse>(
       `/me/requests?page=${page}&page_size=${pageSize}`,
     ),
-
   getVacationBalance: () => apiFetch<VacationBalanceResponse>("/me/vacation"),
 };

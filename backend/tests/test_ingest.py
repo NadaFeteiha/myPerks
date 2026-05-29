@@ -36,22 +36,22 @@ from rag.ingest import _chunk_text, ingest_pdf
 def test_chunk_text_respects_token_budget_and_overlap() -> None:
     # ~1200 tokens of distinct words.
     text = " ".join(f"word{i}" for i in range(1200))
-    chunks = _chunk_text(text, max_tokens=500, overlap=50)
+    chunks = _chunk_text([(1, text)], max_tokens=500, overlap=50)
     assert len(chunks) >= 2
     # No chunk should blow far past the budget (token != word, but close here).
     import tiktoken
 
     enc = tiktoken.get_encoding("cl100k_base")
-    assert all(len(enc.encode(c)) <= 500 for c in chunks)
+    assert all(len(enc.encode(chunk_text)) <= 500 for chunk_text, _, _ in chunks)
 
 
 def test_chunk_text_empty_returns_empty() -> None:
-    assert _chunk_text("") == []
+    assert _chunk_text([]) == []
 
 
 def test_chunk_text_rejects_bad_overlap() -> None:
     with pytest.raises(ValueError):
-        _chunk_text("some text here", max_tokens=100, overlap=100)
+        _chunk_text([(1, "some text here")], max_tokens=100, overlap=100)
 
 
 # ── Dedup logic: mocked session + mocked embeddings (no DB, no API) ──────────
@@ -76,7 +76,7 @@ def test_ingest_skips_duplicate_without_embedding() -> None:
 
         result = asyncio.run(
             ingest_pdf(
-                source=minimal_pdf,
+                pdf_bytes=minimal_pdf,
                 filename="dup.pdf",
                 uploaded_by=None,
                 session=session,
@@ -139,7 +139,7 @@ async def test_ingest_and_similarity_search(test_session: object) -> None:
         "Unused vacation rolls over up to a cap of ten days."
     )
     doc = await ingest_pdf(
-        source=pdf,
+        pdf_bytes=pdf,
         filename="policy.pdf",
         uploaded_by=None,
         session=test_session,  # type: ignore[arg-type]

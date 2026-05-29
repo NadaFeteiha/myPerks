@@ -4,6 +4,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
 
+from api.chat import router as chat_router
+from api.routers.dashboard import router as dashboard_router
+from api.routers.employees import router as employees_router
 from api.upload import router as upload_router
 from db.models import Employee
 from db.session import AsyncSessionLocal
@@ -19,7 +22,10 @@ app.add_middleware(
     allow_origins=settings.allowed_origins,
 )
 
+app.include_router(dashboard_router)
+app.include_router(employees_router)
 app.include_router(upload_router)
+app.include_router(chat_router)
 
 
 @app.get("/")
@@ -29,10 +35,14 @@ async def welcome() -> dict[str, str]:
 
 @app.get("/health")
 async def health() -> dict[str, str]:
-    return {"status": "ok"}
+    return {
+        "status": "ok",
+        "clerk_issuer": settings.clerk_issuer or "(not set)",
+        "clerk_jwks_url": settings.clerk_jwks_url or "(not set)",
+    }
 
 
-# ── TEMP: test route — remove before production ───────────────────────────────
+# ── TEMP: remove before production ───────────────────────────────────────────
 @app.get("/test/employees")
 async def test_employees() -> list[dict[str, str | int | None]]:
     async with AsyncSessionLocal() as session:

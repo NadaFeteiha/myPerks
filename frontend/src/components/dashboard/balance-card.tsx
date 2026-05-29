@@ -1,6 +1,7 @@
-import type { ProgressColor } from "@/data/mock/dashboard.mock";
-
 import { cn } from "@/lib/cn";
+
+// Moved out of mock - this type belongs here
+type ProgressColor = "blue" | "teal";
 
 // Static map keeps class strings in source so Tailwind JIT can detect them
 const PROGRESS_COLOR_MAP: Record<ProgressColor, string> = {

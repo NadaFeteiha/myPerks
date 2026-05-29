@@ -1,5 +1,4 @@
 # backend/db/session.py
-
 from collections.abc import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import (
@@ -24,5 +23,8 @@ AsyncSessionLocal = async_sessionmaker(
 
 
 async def get_session() -> AsyncGenerator[AsyncSession, None]:
+    """
+    FastAPI dependency that provides a database session per request.
+    """
     async with AsyncSessionLocal() as session:
         yield session
