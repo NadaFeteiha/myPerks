@@ -78,9 +78,28 @@ async def register_me(
     Returns 409 if the employee already exists.
     """
     async with AsyncSessionLocal() as session:
+        # Check by clerk_user_id first
         existing = await session.scalar(
             select(Employee).where(Employee.clerk_user_id == clerk_user_id)
         )
+
+        # Also check by email — same person may have a new Clerk account
+        if existing is None:
+            existing = await session.scalar(
+                select(Employee).where(Employee.email == body.email)
+            )
+            if existing is not None:
+                # Re-link the existing row to the current Clerk user ID
+                existing.clerk_user_id = clerk_user_id
+                await session.commit()
+                await session.refresh(existing)
+                return EmployeeResponse(
+                    id=cast(int, existing.id),
+                    clerk_user_id=cast(str, existing.clerk_user_id),
+                    name=cast(str, existing.name),
+                    email=cast(str, existing.email),
+                    department=cast("str | None", existing.department),
+                )
 
         if existing is not None:
             raise HTTPException(
