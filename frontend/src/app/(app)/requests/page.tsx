@@ -34,10 +34,6 @@ function getShortDescription(body: null | string): string {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Status badge
-// ---------------------------------------------------------------------------
-
 const STATUS_STYLES: Record<string, string> = {
   approved: "bg-green-100 text-green-800",
   cancelled: "bg-muted text-muted-foreground",
@@ -45,6 +41,9 @@ const STATUS_STYLES: Record<string, string> = {
   rejected: "bg-red-100 text-red-800",
 };
 
+// ---------------------------------------------------------------------------
+// Page
+// ---------------------------------------------------------------------------
 export default async function RequestsPage({
   searchParams,
 }: {
@@ -110,9 +109,8 @@ export default async function RequestsPage({
 }
 
 // ---------------------------------------------------------------------------
-// Table row
+// Empty state
 // ---------------------------------------------------------------------------
-
 function EmptyState() {
   return (
     <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border py-16 text-center">
@@ -125,9 +123,8 @@ function EmptyState() {
 }
 
 // ---------------------------------------------------------------------------
-// Empty state
+// Pagination
 // ---------------------------------------------------------------------------
-
 function Pagination({
   page,
   pageSize,
@@ -168,9 +165,8 @@ function Pagination({
 }
 
 // ---------------------------------------------------------------------------
-// Pagination
+// Table row
 // ---------------------------------------------------------------------------
-
 function RequestRow({ item }: { item: RequestHistoryItem }) {
   return (
     <tr className="border-b border-border last:border-0">
@@ -189,9 +185,8 @@ function RequestRow({ item }: { item: RequestHistoryItem }) {
 }
 
 // ---------------------------------------------------------------------------
-// Page
+// Status badge
 // ---------------------------------------------------------------------------
-
 function StatusBadge({ status }: { status: string }) {
   const classes = STATUS_STYLES[status] ?? "bg-muted text-muted-foreground";
   return (
