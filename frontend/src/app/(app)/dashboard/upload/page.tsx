@@ -24,10 +24,14 @@ export default function UploadPage() {
       const res = await fetch("/api/backend/upload/documents", {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) throw new Error("Failed to fetch documents");
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(`${res.status}: ${body.detail ?? res.statusText}`);
+      }
       const data = await res.json();
       setDocuments(data.documents);
-    } catch (_err) {
+    } catch (err) {
+      console.error("[upload] fetchDocuments failed:", err);
       setError("Could not load documents.");
     } finally {
       setIsLoading(false);

@@ -3,7 +3,10 @@ import { createUploadthing, type FileRouter } from "uploadthing/next";
 const f = createUploadthing();
 
 export const ourFileRouter = {
-  pdfUploader: f({ pdf: { maxFileCount: 1, maxFileSize: "16MB" } })
+  pdfUploader: f(
+    { pdf: { maxFileCount: 1, maxFileSize: "16MB" } },
+    { awaitServerData: false },
+  )
     .middleware(async () => {
       return {};
     })

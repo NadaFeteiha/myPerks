@@ -1,7 +1,8 @@
 "use client";
 
+import { useAuth } from "@clerk/nextjs";
 import { UploadCloud } from "lucide-react";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 
 import { useUploadThing } from "@/lib/uploadthing";
 
@@ -9,32 +10,84 @@ type UploadSectionProps = {
   onUploadComplete: () => void;
 };
 
+type UploadState = "idle" | "processing" | "uploading";
+
 export function UploadSection({ onUploadComplete }: UploadSectionProps) {
+  const { getToken } = useAuth();
+  const [uploadState, setUploadState] = useState<UploadState>("idle");
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<null | string>(null);
-  const [isUploading, setIsUploading] = useState(false);
+
+  const isBusy = uploadState !== "idle";
+
+  useEffect(() => {
+    if (!isBusy) return;
+    const handle = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener("beforeunload", handle);
+    return () => window.removeEventListener("beforeunload", handle);
+  }, [isBusy]);
 
   const { startUpload } = useUploadThing("pdfUploader", {
-    onClientUploadComplete: () => {
-      setIsUploading(false);
+    onClientUploadComplete: (files) => {
+      const f = files[0];
+      if (!f) {
+        setError("Upload returned no file data.");
+        setUploadState("idle");
+        setProgress(0);
+        return;
+      }
+
+      setUploadState("processing");
       setProgress(0);
-      setError(null);
-      onUploadComplete();
+
+      async function ingest() {
+        try {
+          const token = await getToken();
+          const res = await fetch("/api/backend/upload/callback", {
+            body: JSON.stringify({
+              files: [{ key: f.key, name: f.name, size: f.size, url: f.url }],
+            }),
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+            method: "POST",
+          });
+
+          if (!res.ok) {
+            const body = await res.json().catch(() => ({}));
+            throw new Error(
+              (body as { detail?: string }).detail ??
+                "Failed to process document.",
+            );
+          }
+
+          onUploadComplete();
+        } catch (err) {
+          setError(err instanceof Error ? err.message : "Upload failed.");
+        } finally {
+          setUploadState("idle");
+        }
+      }
+
+      void ingest();
     },
     onUploadError: (err) => {
-      setIsUploading(false);
-      setProgress(0);
       setError(err.message);
+      setUploadState("idle");
+      setProgress(0);
     },
     onUploadProgress: (p) => setProgress(p),
   });
 
-  const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setIsUploading(true);
+    setUploadState("uploading");
     setError(null);
-    await startUpload([file]);
+    void startUpload([file]);
   };
 
   return (
@@ -45,7 +98,7 @@ export function UploadSection({ onUploadComplete }: UploadSectionProps) {
       >
         <UploadCloud className="mb-2 h-6 w-6 text-muted-foreground" />
         <p className="text-[13px] font-medium text-foreground">
-          {isUploading ? "Uploading..." : "Click to upload a PDF"}
+          {stateLabel(uploadState)}
         </p>
         <p className="mt-0.5 text-[11px] text-muted-foreground">
           PDF only · max 16MB
@@ -53,14 +106,14 @@ export function UploadSection({ onUploadComplete }: UploadSectionProps) {
         <input
           accept=".pdf"
           className="hidden"
-          disabled={isUploading}
+          disabled={isBusy}
           id="pdf-upload-input"
           onChange={handleChange}
           type="file"
         />
       </label>
 
-      {isUploading && (
+      {uploadState === "uploading" && (
         <div className="mt-3 h-1 overflow-hidden rounded-full bg-surface-3">
           <div
             className="h-full rounded-full bg-brand-teal-400 transition-all"
@@ -72,4 +125,10 @@ export function UploadSection({ onUploadComplete }: UploadSectionProps) {
       {error && <p className="mt-3 text-[12px] text-red-500">{error}</p>}
     </div>
   );
+}
+
+function stateLabel(state: UploadState): string {
+  if (state === "uploading") return "Uploading...";
+  if (state === "processing") return "Processing...";
+  return "Click to upload a PDF";
 }
