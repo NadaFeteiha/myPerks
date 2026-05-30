@@ -79,16 +79,16 @@ export default async function RequestsPage({
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border bg-muted/40">
-                  <th className="py-3 pr-4 text-left text-[10px] font-semibold uppercase tracking-[0.07em] text-muted-foreground">
+                  <th className="py-3 pr-4 text-center text-[10px] font-semibold uppercase tracking-[0.07em] text-muted-foreground">
                     Type
                   </th>
-                  <th className="py-3 pr-4 text-left text-[10px] font-semibold uppercase tracking-[0.07em] text-muted-foreground">
+                  <th className="py-3 pr-4 text-center text-[10px] font-semibold uppercase tracking-[0.07em] text-muted-foreground">
                     Status
                   </th>
-                  <th className="py-3 pr-4 text-left text-[10px] font-semibold uppercase tracking-[0.07em] text-muted-foreground">
+                  <th className="py-3 pr-4 text-center text-[10px] font-semibold uppercase tracking-[0.07em] text-muted-foreground">
                     Date
                   </th>
-                  <th className="py-3 text-left text-[10px] font-semibold uppercase tracking-[0.07em] text-muted-foreground">
+                  <th className="py-3 text-center text-[10px] font-semibold uppercase tracking-[0.07em] text-muted-foreground">
                     Description
                   </th>
                 </tr>
@@ -170,14 +170,16 @@ function Pagination({
 function RequestRow({ item }: { item: RequestHistoryItem }) {
   return (
     <tr className="border-b border-border last:border-0">
-      <td className="py-3 pr-4 text-sm font-medium">{formatType(item.type)}</td>
-      <td className="py-3 pr-4">
+      <td className="py-3 pr-4 text-sm text-center font-medium">
+        {formatType(item.type)}
+      </td>
+      <td className="py-3 pr-4 text-center">
         <StatusBadge status={item.status} />
       </td>
-      <td className="py-3 pr-4 text-sm text-muted-foreground">
+      <td className="py-3 pr-4 text-sm text-center text-muted-foreground">
         {formatDate(item.created_at)}
       </td>
-      <td className="py-3 text-sm text-muted-foreground">
+      <td className="py-3 text-sm text-center text-muted-foreground">
         {getShortDescription(item.body)}
       </td>
     </tr>
