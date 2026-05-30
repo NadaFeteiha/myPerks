@@ -2,9 +2,11 @@
 
 import { useAuth, useUser } from "@clerk/nextjs";
 import { Pencil } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { Message } from "@/types/chat";
+import type { ConversationDetail } from "@/types/conversation";
 
 import { ChatInput } from "@/components/assistant/chat-input";
 import { ChatMessages } from "@/components/assistant/chat-messages";
@@ -14,15 +16,21 @@ import { streamChat } from "@/lib/chat-stream";
 export function AssistantClient() {
   const { getToken } = useAuth();
   const { user } = useUser();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const conversationParam = searchParams.get("conversation");
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
+  const [isLoadingConversation, setIsLoadingConversation] = useState(false);
   const [error, setError] = useState<null | string>(null);
   // Chat is locked until the employee row is confirmed to exist
   const [isRegistered, setIsRegistered] = useState(false);
 
   const conversationIdRef = useRef<null | number>(null);
   const registeredRef = useRef(false);
+  const loadedConversationRef = useRef<null | number>(null);
 
   useEffect(() => {
     if (!user || registeredRef.current) return;
@@ -68,6 +76,51 @@ export function AssistantClient() {
       }
     })();
   }, [user, getToken]);
+
+  // Hydrate from ?conversation=<id> when the URL changes
+  useEffect(() => {
+    if (!conversationParam) return;
+    const id = Number(conversationParam);
+    if (!Number.isInteger(id) || id <= 0) return;
+    if (loadedConversationRef.current === id) return;
+
+    loadedConversationRef.current = id;
+    setIsLoadingConversation(true);
+    setError(null);
+
+    void (async () => {
+      try {
+        const token = await getToken();
+        if (!token) throw new Error("Not authenticated");
+
+        const res = await fetch(`/api/backend/conversations/${id}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (!res.ok) {
+          throw new Error(`Could not load conversation (${res.status})`);
+        }
+
+        const data = (await res.json()) as ConversationDetail;
+
+        setMessages(
+          data.messages.map((m) => ({
+            content: m.content,
+            id: String(m.id),
+            role: m.role,
+          })),
+        );
+        conversationIdRef.current = id;
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : "Could not load conversation",
+        );
+        loadedConversationRef.current = null;
+      } finally {
+        setIsLoadingConversation(false);
+      }
+    })();
+  }, [conversationParam, getToken]);
 
   const handleSendMessage = useCallback(
     async (content: string) => {
@@ -129,9 +182,14 @@ export function AssistantClient() {
 
   const handleNewConversation = useCallback(() => {
     conversationIdRef.current = null;
+    loadedConversationRef.current = null;
     setMessages([]);
     setError(null);
-  }, []);
+    // Strip ?conversation=… from the URL without reloading
+    if (conversationParam) {
+      router.replace("/assistant");
+    }
+  }, [conversationParam, router]);
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
@@ -154,7 +212,11 @@ export function AssistantClient() {
         </button>
       </div>
 
-      {messages.length === 0 ? (
+      {isLoadingConversation ? (
+        <div className="flex flex-1 items-center justify-center px-6 py-8">
+          <p className="text-sm text-muted-foreground">Loading conversation…</p>
+        </div>
+      ) : messages.length === 0 ? (
         <div className="flex flex-1 items-center justify-center overflow-y-auto px-6 py-8">
           <WelcomeScreen onSelectPrompt={handleSendMessage} />
         </div>
@@ -171,7 +233,7 @@ export function AssistantClient() {
       )}
 
       <ChatInput
-        disabled={isStreaming || !isRegistered}
+        disabled={isStreaming || !isRegistered || isLoadingConversation}
         onSendMessage={handleSendMessage}
       />
     </div>
