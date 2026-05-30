@@ -10,6 +10,7 @@ from sqlalchemy.orm import selectinload
 from api.chat import get_current_employee
 from db.models import Conversation, Employee, Message
 from db.session import AsyncSessionLocal
+from typing import cast
 
 router = APIRouter(prefix="/conversations", tags=["conversations"])
 
@@ -147,7 +148,7 @@ async def get_conversation(
 
     return ConversationDetail(
         id=conversation.id,
-        title=_derive_title(conversation.title, first_user),
+        title=_derive_title(cast(str | None, conversation.title), first_user),
         created_at=conversation.created_at,
         updated_at=conversation.updated_at,
         messages=[

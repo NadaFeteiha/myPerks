@@ -12,7 +12,7 @@ export type ConversationSummary = {
   updated_at: string;
 };
 
-export type MessageOut = {
+type MessageOut = {
   content: string;
   created_at: string;
   id: number;
