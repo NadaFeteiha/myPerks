@@ -1,7 +1,7 @@
 "use client";
 
 import { useAuth } from "@clerk/nextjs";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 import type { ConversationSummary } from "@/types/conversation";
 
@@ -14,35 +14,41 @@ export function HistoryClient() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<null | string>(null);
 
-  const loadConversations = useCallback(async () => {
-    setError(null);
-    setIsLoading(true);
-    try {
-      const token = await getToken();
-      if (!token) throw new Error("Not authenticated");
-
-      const res = await fetch("/api/backend/conversations", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (!res.ok) {
-        throw new Error(`Failed to load conversations (${res.status})`);
-      }
-
-      const data = (await res.json()) as ConversationSummary[];
-      setConversations(data);
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Could not load conversations",
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  }, [getToken]);
-
   useEffect(() => {
-    void loadConversations();
-  }, [loadConversations]);
+    let cancelled = false;
+
+    void (async () => {
+      try {
+        const token = await getToken();
+        if (!token) throw new Error("Not authenticated");
+
+        const res = await fetch("/api/backend/conversations", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (!res.ok) {
+          throw new Error(`Failed to load conversations (${res.status})`);
+        }
+
+        const data = (await res.json()) as ConversationSummary[];
+        if (!cancelled) {
+          setConversations(data);
+          setIsLoading(false);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(
+            err instanceof Error ? err.message : "Could not load conversations",
+          );
+          setIsLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [getToken]);
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">

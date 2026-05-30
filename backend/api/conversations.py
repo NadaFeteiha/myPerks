@@ -61,7 +61,7 @@ def _derive_title(stored_title: str | None, first_user_message: str | None) -> s
 
 @router.get("", response_model=list[ConversationSummary])
 async def list_conversations(
-    employee: Employee = Depends(get_current_employee),
+    employee: Employee = Depends(get_current_employee),  # noqa: B008
 ) -> list[ConversationSummary]:
     """List the current employee's conversations, newest first."""
     async with AsyncSessionLocal() as session:
@@ -123,7 +123,7 @@ async def list_conversations(
 @router.get("/{conversation_id}", response_model=ConversationDetail)
 async def get_conversation(
     conversation_id: int,
-    employee: Employee = Depends(get_current_employee),
+    employee: Employee = Depends(get_current_employee),  # noqa: B008
 ) -> ConversationDetail:
     """Get a single conversation with all its messages, oldest first."""
     async with AsyncSessionLocal() as session:
