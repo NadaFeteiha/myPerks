@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import cast
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
@@ -10,7 +11,6 @@ from sqlalchemy.orm import selectinload
 from api.chat import get_current_employee
 from db.models import Conversation, Employee, Message
 from db.session import AsyncSessionLocal
-from typing import cast
 
 router = APIRouter(prefix="/conversations", tags=["conversations"])
 
