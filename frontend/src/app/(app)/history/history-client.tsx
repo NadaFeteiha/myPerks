@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import type { ConversationSummary } from "@/types/conversation";
 
 import { ConversationList } from "@/components/history/conversation-list";
+import { listConversations } from "@/lib/conversations";
 
 export function HistoryClient() {
   const { getToken } = useAuth();
@@ -22,15 +23,8 @@ export function HistoryClient() {
         const token = await getToken();
         if (!token) throw new Error("Not authenticated");
 
-        const res = await fetch("/api/backend/conversations", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const data = await listConversations(token);
 
-        if (!res.ok) {
-          throw new Error(`Failed to load conversations (${res.status})`);
-        }
-
-        const data = (await res.json()) as ConversationSummary[];
         if (!cancelled) {
           setConversations(data);
           setIsLoading(false);
