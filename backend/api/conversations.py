@@ -5,7 +5,7 @@ from typing import cast
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
-from sqlalchemy import desc, func, select
+from sqlalchemy import desc, func, or_, select
 from sqlalchemy.orm import selectinload
 
 from api.chat import get_current_employee
@@ -66,6 +66,7 @@ def _derive_title(stored_title: str | None, first_user_message: str | None) -> s
 
 @router.get("", response_model=list[ConversationSummary])
 async def list_conversations(
+    q: str | None = None,
     employee: Employee = Depends(get_current_employee),  # noqa: B008
 ) -> list[ConversationSummary]:
     """List the current employee's conversations, newest first."""
@@ -111,6 +112,21 @@ async def list_conversations(
             .where(Conversation.employee_id == employee.id)
             .order_by(desc(Conversation.updated_at))
         )
+
+        if q is not None and q.strip():
+            pattern = f"%{q.strip()}%"
+            # Subquery: conversation IDs that have at least one matching message
+            matching_msg_conv_ids = (
+                select(Message.conversation_id)
+                .where(Message.content.ilike(pattern))
+                .scalar_subquery()
+            )
+            stmt = stmt.where(
+                or_(
+                    Conversation.title.ilike(pattern),
+                    Conversation.id.in_(matching_msg_conv_ids),
+                )
+            )
 
         rows = (await session.execute(stmt)).all()
 
