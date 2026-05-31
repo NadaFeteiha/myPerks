@@ -25,14 +25,12 @@ export function RenameDialog({
   // Reset value when opening / when initialTitle changes
   useEffect(() => {
     if (isOpen) {
-      setValue(initialTitle);
-      // Defer focus so the input is mounted
       queueMicrotask(() => {
         inputRef.current?.focus();
         inputRef.current?.select();
       });
     }
-  }, [isOpen, initialTitle]);
+  }, [isOpen]);
 
   // Close on ESC
   useEffect(() => {

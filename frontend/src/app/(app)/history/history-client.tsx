@@ -146,6 +146,7 @@ export function HistoryClient() {
         initialTitle={renameTarget?.title ?? ""}
         isOpen={renameTarget !== null}
         isPending={isRenaming}
+        key={renameTarget?.id ?? "closed"}
         onCancel={() => {
           if (!isRenaming) {
             setRenameTarget(null);
