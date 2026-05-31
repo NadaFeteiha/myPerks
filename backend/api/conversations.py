@@ -23,6 +23,7 @@ class ConversationSummary(BaseModel):
     updated_at: datetime
     message_count: int
 
+
 class MessageOut(BaseModel):
     id: int
     role: str
@@ -36,6 +37,7 @@ class ConversationDetail(BaseModel):
     created_at: datetime
     updated_at: datetime
     messages: list[MessageOut]
+
 
 class ConversationUpdate(BaseModel):
     title: str
@@ -164,6 +166,7 @@ async def get_conversation(
         ],
     )
 
+
 @router.patch("/{conversation_id}", response_model=ConversationSummary)
 async def update_conversation(
     conversation_id: int,
@@ -200,11 +203,14 @@ async def update_conversation(
         await session.commit()
         await session.refresh(conversation)
 
-        message_count = await session.scalar(
-            select(func.count(Message.id)).where(
-                Message.conversation_id == conversation.id
+        message_count = (
+            await session.scalar(
+                select(func.count(Message.id)).where(
+                    Message.conversation_id == conversation.id
+                )
             )
-        ) or 0
+            or 0
+        )
 
     return ConversationSummary(
         id=conversation.id,
@@ -215,9 +221,8 @@ async def update_conversation(
 
 
 @router.delete(
-        "/{conversation_id}",
-        status_code=status.HTTP_204_NO_CONTENT,
-        response_model=None)
+    "/{conversation_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None
+)
 async def delete_conversation(
     conversation_id: int,
     employee: Employee = Depends(get_current_employee),  # noqa: B008
