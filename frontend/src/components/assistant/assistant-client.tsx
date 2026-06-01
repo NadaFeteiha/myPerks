@@ -5,6 +5,7 @@ import { Pencil } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import type { PendingRequest } from "@/lib/chat-stream";
 import type { Message } from "@/types/chat";
 import type { ConversationDetail } from "@/types/conversation";
 
@@ -14,7 +15,6 @@ import { RequestConfirmationCard } from "@/components/assistant/request-confirma
 import { WelcomeScreen } from "@/components/assistant/welcome-screen";
 import { useApi } from "@/lib/api.client";
 import { streamChat } from "@/lib/chat-stream";
-import type { PendingRequest } from "@/lib/chat-stream";
 
 export function AssistantClient() {
   const { getToken } = useAuth();
@@ -216,7 +216,7 @@ export function AssistantClient() {
     if (!pendingRequest) return;
     setIsSubmittingRequest(true);
     try {
-      await api.createRequest({ type: pendingRequest.type, body: pendingRequest.body });
+      await api.createRequest({ body: pendingRequest.body, type: pendingRequest.type });
       setRequestSubmitted(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to submit request");

@@ -17,71 +17,6 @@ interface Props {
   submitted: boolean;
 }
 
-function formatType(type: string): string {
-  if (type.toLowerCase() === "pto") return "PTO";
-  return type.charAt(0).toUpperCase() + type.slice(1);
-}
-
-function formatDate(iso: string): string {
-  const [year, month, day] = iso.split("-").map(Number);
-  return new Date(year, month - 1, day).toLocaleDateString("en-US", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-}
-
-function RequestDetail({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-start gap-2">
-      <span className="min-w-22.5 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
-        {label}
-      </span>
-      <span className="text-[13px] text-foreground">{value}</span>
-    </div>
-  );
-}
-
-function WorkingDaysBreakdown({ breakdown }: { breakdown: BreakdownDay[] }) {
-  if (!breakdown.length) return null;
-  return (
-    <div className="mt-3 border-t border-border pt-3">
-      <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
-        Day breakdown
-      </p>
-      <div className="flex flex-wrap gap-1">
-        {breakdown.map((d) => {
-          const [year, month, day] = d.date.split("-").map(Number);
-          const label = new Date(year, month - 1, day).toLocaleDateString("en-US", {
-            day: "numeric",
-            month: "short",
-          });
-          return (
-            <span
-              key={d.date}
-              title={d.name ?? (d.status === "weekend" ? "Weekend" : "Working day")}
-              className={cn(
-                "inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium",
-                d.status === "work" && "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
-                d.status === "weekend" && "bg-muted text-muted-foreground line-through",
-                d.status === "holiday" && "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300",
-              )}
-            >
-              {d.day} {label}
-              {d.status === "holiday" && " 🏛️"}
-            </span>
-          );
-        })}
-      </div>
-      <p className="mt-1.5 text-[11px] text-muted-foreground">
-        <span className="mr-3">🟩 working day</span>
-        <span className="mr-3">⬜ weekend</span>
-        <span>🟨 public holiday</span>
-      </p>
-    </div>
-  );
-}
-
 export function RequestConfirmationCard({
   cancelled,
   isSubmitting,
@@ -232,6 +167,71 @@ export function RequestConfirmationCard({
           </>
         )}
       </div>
+    </div>
+  );
+}
+
+function formatDate(iso: string): string {
+  const [year, month, day] = iso.split("-").map(Number);
+  return new Date(year, month - 1, day).toLocaleDateString("en-US", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function formatType(type: string): string {
+  if (type.toLowerCase() === "pto") return "PTO";
+  return type.charAt(0).toUpperCase() + type.slice(1);
+}
+
+function RequestDetail({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-start gap-2">
+      <span className="min-w-22.5 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+        {label}
+      </span>
+      <span className="text-[13px] text-foreground">{value}</span>
+    </div>
+  );
+}
+
+function WorkingDaysBreakdown({ breakdown }: { breakdown: BreakdownDay[] }) {
+  if (!breakdown.length) return null;
+  return (
+    <div className="mt-3 border-t border-border pt-3">
+      <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+        Day breakdown
+      </p>
+      <div className="flex flex-wrap gap-1">
+        {breakdown.map((d) => {
+          const [year, month, day] = d.date.split("-").map(Number);
+          const label = new Date(year, month - 1, day).toLocaleDateString("en-US", {
+            day: "numeric",
+            month: "short",
+          });
+          return (
+            <span
+              className={cn(
+                "inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium",
+                d.status === "work" && "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
+                d.status === "weekend" && "bg-muted text-muted-foreground line-through",
+                d.status === "holiday" && "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300",
+              )}
+              key={d.date}
+              title={d.name ?? (d.status === "weekend" ? "Weekend" : "Working day")}
+            >
+              {d.day} {label}
+              {d.status === "holiday" && " 🏛️"}
+            </span>
+          );
+        })}
+      </div>
+      <p className="mt-1.5 text-[11px] text-muted-foreground">
+        <span className="mr-3">🟩 working day</span>
+        <span className="mr-3">⬜ weekend</span>
+        <span>🟨 public holiday</span>
+      </p>
     </div>
   );
 }

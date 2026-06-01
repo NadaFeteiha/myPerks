@@ -25,17 +25,6 @@ function formatType(type: string): string {
   return type.charAt(0).toUpperCase() + type.slice(1);
 }
 
-function getShortDescription(body: null | string): string {
-  if (!body) return "—";
-  try {
-    const parsed = JSON.parse(body) as Record<string, unknown>;
-    const text = parsed.reason ?? parsed.description;
-    return typeof text === "string" ? text : "—";
-  } catch {
-    return "—";
-  }
-}
-
 /**
  * For leave requests, return "Jun 6 – Jun 12, 2026" using start/end from body.
  * For reimbursements (no start_date), fall back to the submission date.
@@ -59,6 +48,17 @@ function getRequestDate(item: RequestHistoryItem): string {
   return formatDate(item.created_at);
 }
 
+function getShortDescription(body: null | string): string {
+  if (!body) return "—";
+  try {
+    const parsed = JSON.parse(body) as Record<string, unknown>;
+    const text = parsed.reason ?? parsed.description;
+    return typeof text === "string" ? text : "—";
+  } catch {
+    return "—";
+  }
+}
+
 const STATUS_STYLES: Record<string, string> = {
   approved: "bg-green-100 text-green-800",
   cancelled: "bg-muted text-muted-foreground",
@@ -78,7 +78,7 @@ export default async function RequestsPage({
   const page = Math.max(1, parseInt(pageParam ?? "1", 10) || 1);
 
   let data: Awaited<ReturnType<typeof api.getRequestHistory>> | null = null;
-  let fetchError: string | null = null;
+  let fetchError: null | string = null;
 
   try {
     data = await api.getRequestHistory(page, PAGE_SIZE);
@@ -231,7 +231,9 @@ function RequestRow({ item }: { item: RequestHistoryItem }) {
 // Status badge
 // ---------------------------------------------------------------------------
 function StatusBadge({ status }: { status: string }) {
-  const classes = STATUS_STYLES[status] ?? "bg-muted text-muted-foreground";
+  const classes = Object.hasOwn(STATUS_STYLES, status)
+    ? STATUS_STYLES[status]
+    : "bg-muted text-muted-foreground";
   return (
     <span
       className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize ${classes}`}

@@ -4,6 +4,11 @@ import { useAuth } from "@clerk/nextjs";
 
 const BACKEND_PREFIX = "/api/backend";
 
+export interface CreateRequestPayload {
+  body: Record<string, unknown>;
+  type: string;
+}
+
 export interface OnboardRequest {
   department?: string;
   email: string;
@@ -16,11 +21,6 @@ export interface OnboardResponse {
   email: null | string;
   id: number;
   name: null | string;
-}
-
-export interface CreateRequestPayload {
-  body: Record<string, unknown>;
-  type: string;
 }
 
 export interface RequestHistoryItem {
