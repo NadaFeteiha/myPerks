@@ -21,7 +21,7 @@ export default function ProfilePage() {
           <h1 className="text-2xl font-semibold text-foreground">
             {user.name}
           </h1>
-          <p className="text-muted-foreground">{user.role}</p>
+          <p className="text-muted-foreground">{user.department}</p>
         </div>
 
         <div className="space-y-4">
@@ -44,8 +44,8 @@ export default function ProfilePage() {
           <div className="flex items-center gap-3 rounded-lg border border-border bg-background px-4 py-3">
             <Briefcase className="h-5 w-5 text-muted-foreground" />
             <div>
-              <p className="text-sm font-medium text-foreground">Role</p>
-              <p className="text-sm text-muted-foreground">{user.role}</p>
+              <p className="text-sm font-medium text-foreground">Department</p>
+              <p className="text-sm text-muted-foreground">{user.department}</p>
             </div>
           </div>
         </div>
