@@ -28,8 +28,13 @@ export async function getConversation(
 
 export async function listConversations(
   token: string,
+  query?: string,
 ): Promise<ConversationSummary[]> {
-  const res = await authedFetch("/api/backend/conversations", token);
+  const trimmed = query?.trim();
+  const url = trimmed
+    ? `/api/backend/conversations?q=${encodeURIComponent(trimmed)}`
+    : "/api/backend/conversations";
+  const res = await authedFetch(url, token);
   if (!res.ok) {
     throw new Error(`Failed to load conversations (${res.status})`);
   }
