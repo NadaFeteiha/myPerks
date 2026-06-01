@@ -22,7 +22,7 @@ type NavItem = {
 const NAV_ITEMS: NavItem[] = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
   { href: "/assistant", icon: MessageCircle, label: "AI Assistant" },
-  { href: "/assistant/history", icon: History, label: "History" },
+  { href: "/history", icon: History, label: "History" },
   { href: "/dashboard/upload", icon: Upload, label: "Documents" },
   { href: "/requests", icon: ClipboardList, label: "My Requests" },
 ];
@@ -64,7 +64,7 @@ export function LeftNav() {
               {user?.name ?? ""}
             </p>
             <p className="text-[11px] text-muted-foreground">
-              {user?.role ?? ""}
+              {user?.department ?? ""}
             </p>
           </div>
         </Link>
@@ -74,7 +74,7 @@ export function LeftNav() {
 }
 
 function isNavItemActive(pathname: string, href: string): boolean {
-  // /assistant must not activate when /assistant/history is the current route
+  // Exact match for AI Assistant; other routes match prefix
   if (href === "/assistant") return pathname === href;
   return pathname.startsWith(href);
 }
