@@ -6,12 +6,12 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { Message } from "@/types/chat";
-import type { ConversationDetail } from "@/types/conversation";
 
 import { ChatInput } from "@/components/assistant/chat-input";
 import { ChatMessages } from "@/components/assistant/chat-messages";
 import { WelcomeScreen } from "@/components/assistant/welcome-screen";
 import { streamChat } from "@/lib/chat-stream";
+import { getConversation } from "@/lib/conversations";
 
 export function AssistantClient() {
   const { getToken } = useAuth();
@@ -93,15 +93,7 @@ export function AssistantClient() {
         const token = await getToken();
         if (!token) throw new Error("Not authenticated");
 
-        const res = await fetch(`/api/backend/conversations/${id}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-
-        if (!res.ok) {
-          throw new Error(`Could not load conversation (${res.status})`);
-        }
-
-        const data = (await res.json()) as ConversationDetail;
+        const data = await getConversation(id, token);
 
         setMessages(
           data.messages.map((m) => ({

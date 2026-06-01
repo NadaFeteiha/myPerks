@@ -1,10 +1,14 @@
 import type { ConversationSummary } from "@/types/conversation";
 
+import { DropdownMenu, DropdownMenuItem } from "./dropdown-menu";
+
 type Props = {
   conversation: ConversationSummary;
+  onDelete: (conversation: ConversationSummary) => void;
+  onRename: (conversation: ConversationSummary) => void;
 };
 
-export function ConversationRow({ conversation }: Props) {
+export function ConversationRow({ conversation, onDelete, onRename }: Props) {
   return (
     <div className="flex items-center justify-between rounded-lg border border-border px-4 py-3 transition-colors hover:border-brand-purple-200 hover:bg-brand-purple-50 dark:hover:border-brand-purple-700 dark:hover:bg-brand-purple-950">
       <div className="flex flex-col gap-0.5 overflow-hidden">
@@ -16,9 +20,22 @@ export function ConversationRow({ conversation }: Props) {
           {conversation.message_count === 1 ? "message" : "messages"}
         </span>
       </div>
-      <span className="shrink-0 pl-4 text-xs text-muted-foreground">
-        {formatRelativeTime(conversation.updated_at)}
-      </span>
+      <div className="flex shrink-0 items-center gap-2 pl-4">
+        <span className="text-xs text-muted-foreground">
+          {formatRelativeTime(conversation.updated_at)}
+        </span>
+        <DropdownMenu label="Conversation actions">
+          <DropdownMenuItem onSelect={() => onRename(conversation)}>
+            Rename
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onSelect={() => onDelete(conversation)}
+            variant="destructive"
+          >
+            Delete
+          </DropdownMenuItem>
+        </DropdownMenu>
+      </div>
     </div>
   );
 }
