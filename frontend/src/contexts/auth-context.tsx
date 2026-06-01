@@ -1,7 +1,9 @@
 "use client";
 
 import { useUser } from "@clerk/nextjs";
-import { createContext, useContext } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
+
+import { useApi } from "@/lib/api.client";
 
 type AuthContextType = {
   isAuthenticated: boolean;
@@ -9,10 +11,10 @@ type AuthContextType = {
 };
 
 type User = {
+  department: string;
   email: string;
   initials: string;
   name: string;
-  role: string;
 };
 
 const AuthContext = createContext<AuthContextType>({
@@ -21,16 +23,31 @@ const AuthContext = createContext<AuthContextType>({
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { isSignedIn, user: clerkUser } = useUser();
+  const { isSignedIn } = useUser();
+  const api = useApi();
+  const [user, setUser] = useState<null | User>(null);
 
-  const user: null | User = clerkUser
-    ? {
-        email: clerkUser.primaryEmailAddress?.emailAddress ?? "",
-        initials: getInitials(clerkUser.fullName ?? clerkUser.firstName ?? "U"),
-        name: clerkUser.fullName ?? clerkUser.firstName ?? "User",
-        role: (clerkUser.publicMetadata?.role as string) ?? "",
-      }
-    : null;
+  useEffect(() => {
+    if (!isSignedIn) {
+      void Promise.resolve().then(() => setUser(null));
+      return;
+    }
+
+    api
+      .getMe()
+      .then((data) => {
+        const name = data.name ?? "User";
+        setUser({
+          department: data.department ?? "",
+          email: data.email ?? "",
+          initials: getInitials(name),
+          name,
+        });
+      })
+      .catch((err: unknown) => {
+        console.error("[MyPerks] Failed to load user profile:", err);
+      });
+  }, [isSignedIn]);
 
   return (
     <AuthContext.Provider value={{ isAuthenticated: !!isSignedIn, user }}>
