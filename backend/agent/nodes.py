@@ -1,23 +1,27 @@
 """
-Four processing steps of our agent.
+Five processing steps of our agent.
 
 Flow:
-    1. router_node     — classify what the user needs (policy docs / live data / email)
+    1. router_node     — classify what the user needs (policy docs / live data / email / request)
     2. rag_node        — fetch relevant HR policy snippets from the vector store
     3. db_node         — fetch the employee's live leave balances and request history
-    4. responder_node — combine all context and produce the final answer
+    4. request_node    — extract structured request details when user wants to submit a request
+    5. responder_node — combine all context and produce the final answer
 """
 
+import json
 import logging
-from datetime import UTC, datetime
+from datetime import UTC, date as _date, datetime, timedelta
 from typing import Any, Literal, cast
+
+import holidays as _holidays
 
 from langchain_core.messages import AIMessage, SystemMessage
 from langchain_openai import ChatOpenAI
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 
-from db.models import Employee, VacationBalance
+from db.models import Employee, RequestHistory, VacationBalance
 from db.session import AsyncSessionLocal
 from rag.search import search_chunks
 from settings import settings
@@ -25,6 +29,131 @@ from settings import settings
 from .state import AgentState
 
 logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Working-day helpers
+# ---------------------------------------------------------------------------
+
+def _count_working_days(start: _date, end: _date) -> int:
+    """Count Mon–Fri days between start and end (inclusive), excluding US federal holidays."""
+    if end < start:
+        return 0
+    federal_holidays = _holidays.US(years=range(start.year, end.year + 1))
+    count = 0
+    current = start
+    while current <= end:
+        if current.weekday() < 5 and current not in federal_holidays:
+            count += 1
+        current += timedelta(days=1)
+    return count
+
+
+def _add_working_days(start: _date, num_days: int) -> _date:
+    """Return the date that is exactly `num_days` working days from start (inclusive)."""
+    if num_days <= 0:
+        return start
+    federal_holidays = _holidays.US(years=range(start.year, start.year + 2))
+    count = 0
+    current = start
+    while True:
+        if current.weekday() < 5 and current not in federal_holidays:
+            count += 1
+            if count == num_days:
+                return current
+        current += timedelta(days=1)
+
+
+def _build_breakdown(start: _date, end: _date) -> list[dict[str, str]]:
+    """
+    Return a day-by-day breakdown from start to end, marking each day as
+    "work", "weekend", or "holiday" (with the holiday name when applicable).
+    """
+    if end < start:
+        return []
+    federal_holidays = _holidays.US(years=range(start.year, end.year + 1))
+    rows: list[dict[str, str]] = []
+    current = start
+    while current <= end:
+        if current.weekday() >= 5:
+            entry: dict[str, str] = {"date": current.isoformat(), "day": current.strftime("%a"), "status": "weekend"}
+        elif current in federal_holidays:
+            entry = {"date": current.isoformat(), "day": current.strftime("%a"), "status": "holiday", "name": str(federal_holidays[current])}
+        else:
+            entry = {"date": current.isoformat(), "day": current.strftime("%a"), "status": "work"}
+        rows.append(entry)
+        current += timedelta(days=1)
+    return rows
+
+
+async def _get_remaining_leave(employee_id: int, leave_type: str) -> float | None:
+    """Return remaining leave days for the employee for the current year, or None if unknown."""
+    current_year = datetime.now(UTC).year
+    try:
+        async with AsyncSessionLocal() as db:
+            balance = (
+                await db.execute(
+                    select(VacationBalance).where(
+                        VacationBalance.employee_id == employee_id,
+                        VacationBalance.leave_type == leave_type,
+                        VacationBalance.year == current_year,
+                    )
+                )
+            ).scalar_one_or_none()
+        return float(balance.remaining_days) if balance is not None else None
+    except Exception:
+        logger.exception("Balance check failed")
+        return None
+
+
+async def _find_leave_conflict(
+    employee_id: int,
+    req_type: str,
+    start: _date,
+    end: _date,
+) -> dict[str, str] | None:
+    """
+    Return the first pending/approved leave request that overlaps [start, end],
+    or None if no conflict exists.
+    """
+    leave_types = {"vacation", "sick", "pto"}
+    if req_type not in leave_types:
+        return None  # reimbursements can't overlap
+
+    try:
+        async with AsyncSessionLocal() as db:
+            rows = (
+                await db.execute(
+                    select(RequestHistory).where(
+                        RequestHistory.employee_id == employee_id,
+                        RequestHistory.status.in_(["pending", "approved"]),
+                        RequestHistory.type.in_(list(leave_types)),
+                    )
+                )
+            ).scalars().all()
+    except Exception:
+        logger.exception("Conflict check DB query failed")
+        return None
+
+    for row in rows:
+        if not row.body:
+            continue
+        try:
+            body = json.loads(row.body)
+            ex_start = _date.fromisoformat(body["start_date"])
+            ex_end = _date.fromisoformat(body["end_date"])
+        except (KeyError, ValueError):
+            continue
+        # Overlap: the ranges share at least one calendar day
+        if max(start, ex_start) <= min(end, ex_end):
+            return {
+                "type": str(row.type),
+                "status": str(row.status),
+                "start_date": ex_start.isoformat(),
+                "end_date": ex_end.isoformat(),
+            }
+    return None
+
 
 # ---------------------------------------------------------------------------
 # LLM and embedding model instances
@@ -46,8 +175,19 @@ Classify the user's question into one or more of these intents:
 - "rag": needs information from HR policy or benefits documents
 - "db": needs the employee's live data (vacation balance, request history)
 - "email": user wants a ready-to-send HR email or request letter drafted
+- "request": user explicitly wants to submit a NEW HR request (vacation, sick leave, PTO, or reimbursement)
+- "cancel_request": user explicitly wants to cancel an EXISTING pending request \
+  (clear phrases only: "cancel it", "cancel the old one", "cancel my request", "remove it", \
+  "delete it", "withdraw it", "cancel the existing one")
 
 Rules:
+- Only use "cancel_request" when the user uses an explicit cancellation verb ("cancel", "remove", \
+  "delete", "withdraw") aimed at an existing request. Short replies like "yes", "okay", "sure", \
+  "no", a number, or a date are NEVER "cancel_request" — they are continuations of the active flow.
+- Use "request" when the user is continuing to provide details for a new request (dates, day counts, \
+  reasons) — even if prior turns contained a conflict or balance warning.
+- Use "request" only when the user wants to submit something NEW.
+- "request" almost always also needs "db" context (leave balances, employee info).
 - Email requests almost always also need "db" and/or "rag" context.
 - Always return at least one intent.\
 """
@@ -62,7 +202,70 @@ Guidelines:
 - Cite policy documents when quoting them (e.g. "According to the PTO Policy...").
 - If the intent includes "email", format your entire response as a complete, \
 ready-to-send professional email with Subject line, salutation, body, and sign-off.
+- If the intent includes "request", acknowledge the request warmly, confirm the key \
+details from the parsed summary in 1–2 sentences, and tell the employee to review the \
+confirmation card and click "Submit Request" to send it to HR, or "Cancel" to dismiss.
 - If context is empty or insufficient, say so honestly — never invent information.\
+"""
+
+# Tells the LLM how to extract structured request details
+_REQUEST_PROMPT = """\
+You are an HR request parser for MyPerks. Extract the structured details of the \
+employee's HR request from the conversation so far.
+
+Today's date: {today}
+
+DATE PARSING RULES — apply these strictly:
+- "June 8" or "8 June"  → {year}-06-08  (use current year: {year})
+- Numeric dates use DAY/MONTH order: "8/6" or "8-6" → June 8 → {year}-06-08
+- If only a month/day is given with no year, always use {year}.
+- If the resulting date is in the past and the user seems to mean a future date, \
+  use next year instead.
+- Always output dates in YYYY-MM-DD format.
+
+For leave requests (vacation, sick, pto) — TWO-STEP flow:
+
+  STEP 1 — dates unknown:
+    If start_date cannot be determined:
+    - If requested_days IS already known (user said e.g. "19 days off") →
+        clarification_question="What date would you like your {{N}}-day leave to start?"
+        (replace {{N}} with the actual number)
+    - If requested_days is also unknown →
+        clarification_question="What date would you like to start, and how many days do you need?"
+
+  STEP 2 — dates known, reason/description unknown:
+    If start_date IS known but reason is null AND the user has NOT explicitly declined \
+    (e.g. said "no reason", "none", "skip", "no") → is_complete=false,
+    clarification_question="Got it! Would you like to add a reason for this leave? (type 'skip' if not)"
+
+  COMPLETE — dates known AND (reason provided OR user explicitly declined):
+    is_complete=true, skip_reason=true if user declined, clarification_question=null
+
+  Date extraction rules:
+  - If the employee gave an explicit end date → set end_date; leave requested_days null.
+  - If the employee gave a number of days → set requested_days; leave end_date null.
+  - If neither → leave both null (defaults to 1 day).
+  - Do NOT calculate days — the system handles calendar arithmetic.
+
+For reimbursement requests — TWO-STEP flow:
+
+  STEP 1 — amount unknown:
+    If amount cannot be determined → is_complete=false,
+    clarification_question="How much would you like to claim?"
+
+  STEP 2 — amount known, description unknown:
+    If amount IS known but description is null AND user has NOT explicitly declined → is_complete=false,
+    clarification_question="What is this reimbursement for? (type 'skip' to leave blank)"
+
+  COMPLETE — amount known AND (description provided OR user explicitly declined):
+    is_complete=true, skip_reason=true if user declined, clarification_question=null
+
+If all required fields are present, set is_complete=true and clarification_question=null.
+
+Generate a concise summary such as:
+  "3 days vacation from June 5–7 for a family trip"
+  "1-day sick leave on June 5"
+  "$200 reimbursement for conference registration fee"\
 """
 
 # ---------------------------------------------------------------------------
@@ -73,11 +276,43 @@ ready-to-send professional email with Subject line, salutation, body, and sign-o
 class _RouterOutput(BaseModel):
     """Structured output the router LLM must return."""
 
-    intent: list[Literal["rag", "db", "email"]]
+    intent: list[Literal["rag", "db", "email", "request", "cancel_request"]]
 
 
 # Bind the LLM to always return a _RouterOutput object
 _router_runnable = _llm.with_structured_output(_RouterOutput)
+
+
+class _RequestBody(BaseModel):
+    """Fields for a structured HR request, all optional to cover both leave and reimbursement."""
+
+    start_date: str | None = Field(None, description="Start date (YYYY-MM-DD) for leave requests")
+    end_date: str | None = Field(None, description="Explicit end date (YYYY-MM-DD) — only set if the employee stated it directly")
+    requested_days: int | None = Field(None, description="Number of days the employee asked for (e.g. '5 days off') — set instead of end_date when the employee gives a count, not a date range")
+    reason: str | None = Field(None, description="Reason or notes for leave")
+    amount: float | None = Field(None, description="Amount for reimbursement requests")
+    currency: str = Field("USD", description="Currency code, default USD")
+    description: str | None = Field(None, description="Description for reimbursement requests")
+
+
+class _RequestOutput(BaseModel):
+    """Structured output the request extraction LLM must return."""
+
+    type: Literal["vacation", "sick", "pto", "reimbursement"]
+    body: _RequestBody
+    summary: str = Field(description="Brief human-readable summary of the request")
+    is_complete: bool = Field(description="True if all required fields are present")
+    skip_reason: bool = Field(
+        False,
+        description="True if the user explicitly declined to provide a reason/description",
+    )
+    clarification_question: str | None = Field(
+        None,
+        description="Question to ask the user when a required field is missing",
+    )
+
+
+_request_runnable = _llm.with_structured_output(_RequestOutput)
 
 
 def _last_human_message(state: AgentState) -> str:
@@ -106,20 +341,25 @@ async def router_node(state: AgentState) -> dict[str, Any]:
     Ask the LLM which data sources are needed to answer the user's question.
     The result (e.g. ["rag", "email"]) is stored in state["intent"] and used
     by the graph to decide which nodes to run next.
+
+    The full conversation history is passed so that short follow-up messages
+    (e.g. "jun 8" after being asked for a start date) are classified correctly
+    as continuations of the ongoing intent.
     """
-    question = _last_human_message(state)
+    messages_for_router: list = [SystemMessage(content=_ROUTER_PROMPT)]
+    for msg in state["messages"]:
+        if msg.type == "human":
+            messages_for_router.append({"role": "user", "content": str(msg.content)})
+        elif msg.type == "ai":
+            messages_for_router.append({"role": "assistant", "content": str(msg.content)})
+
     try:
         result = cast(
             _RouterOutput,
-            await _router_runnable.ainvoke(
-                [
-                    SystemMessage(content=_ROUTER_PROMPT),
-                    {"role": "user", "content": question},
-                ]
-            ),
+            await _router_runnable.ainvoke(messages_for_router),
         )
         # Only keep valid intent values; discard anything unexpected
-        intent = [i for i in result.intent if i in ("rag", "db", "email")]
+        intent = [i for i in result.intent if i in ("rag", "db", "email", "request", "cancel_request")]
     except Exception:
         logger.exception("Router failed — defaulting to rag")
         intent = ["rag"]
@@ -213,6 +453,220 @@ async def db_node(state: AgentState) -> dict[str, Any]:
     return {"db_context": db_context}
 
 
+async def request_node(state: AgentState) -> dict[str, Any]:
+    """
+    Step 2c — Structured request extraction.
+
+    When the user expresses intent to submit an HR request, this node uses an LLM
+    with structured output to extract the request type and details (dates, reason,
+    amount, etc.) into a dict stored as state["pending_request"].
+
+    The responder_node then generates a confirmation message, and the frontend
+    renders a card with Submit/Cancel buttons.
+    """
+    now = datetime.now(UTC)
+    today_str = now.strftime("%Y-%m-%d")
+    year_str = str(now.year)
+
+    # Pass full message history so multi-turn clarifications are visible to the LLM
+    messages_for_llm = [
+        SystemMessage(content=_REQUEST_PROMPT.format(today=today_str, year=year_str))
+    ]
+    for msg in state["messages"]:
+        if msg.type == "human":
+            messages_for_llm.append({"role": "user", "content": str(msg.content)})
+        elif msg.type == "ai":
+            messages_for_llm.append({"role": "assistant", "content": str(msg.content)})
+
+    try:
+        result = cast(
+            _RequestOutput,
+            await _request_runnable.ainvoke(messages_for_llm),
+        )
+
+        if not result.is_complete:
+            return {
+                "pending_request": None,
+                "clarification_question": result.clarification_question,
+            }
+
+        body = result.body
+        today = now.date()
+
+        # Validate and enrich leave-request dates in Python
+        if body.start_date:
+            try:
+                start = _date.fromisoformat(body.start_date)
+            except ValueError:
+                return {
+                    "pending_request": None,
+                    "clarification_question": "I couldn't parse that date. Could you give the start date in a format like 'June 8' or '8/6'?",
+                }
+
+            if start < today:
+                return {
+                    "pending_request": None,
+                    "clarification_question": (
+                        f"{start.strftime('%B %-d')} has already passed. "
+                        "Please provide a future start date."
+                    ),
+                }
+
+            if body.requested_days and body.requested_days > 0:
+                # Employee said "N days off" — compute end date from that count
+                end = _add_working_days(start, body.requested_days)
+                working_days = body.requested_days
+            elif body.end_date:
+                # Employee gave an explicit date range — count working days between them
+                try:
+                    end = _date.fromisoformat(body.end_date)
+                except ValueError:
+                    end = start
+                working_days = _count_working_days(start, end)
+            else:
+                # No end info — default to a single day
+                end = start
+                working_days = _count_working_days(start, end)
+
+            # Check leave balance — reject if requested days exceed what's remaining
+            if result.type in ("vacation", "sick", "pto"):
+                remaining = await _get_remaining_leave(state["employee_id"], result.type)
+                if remaining is not None and working_days > remaining:
+                    remaining_int = int(remaining)
+                    return {
+                        "pending_request": None,
+                        "clarification_question": (
+                            f"You only have {remaining_int} remaining {result.type} "
+                            f"day{'s' if remaining_int != 1 else ''} this year, but this request "
+                            f"covers {working_days} working days. "
+                            f"How many days would you like to request instead? (maximum: {remaining_int})"
+                        ),
+                    }
+
+            # Check for overlapping existing leave requests (pending or approved)
+            conflict = await _find_leave_conflict(
+                employee_id=state["employee_id"],
+                req_type=result.type,
+                start=start,
+                end=end,
+            )
+            if conflict:
+                existing_start = _date.fromisoformat(conflict["start_date"]).strftime("%-d %B")
+                existing_end = _date.fromisoformat(conflict["end_date"]).strftime("%-d %B")
+                return {
+                    "pending_request": None,
+                    "clarification_question": (
+                        f"You already have a {conflict['status']} {conflict['type']} request "
+                        f"from {existing_start} to {existing_end} that overlaps with these dates. "
+                        "Would you like to choose different dates or cancel the existing request?"
+                    ),
+                }
+
+            body_dict = body.model_dump(exclude_none=True)
+            body_dict.pop("requested_days", None)  # internal field, not stored in DB
+            body_dict["start_date"] = start.isoformat()
+            body_dict["end_date"] = end.isoformat()
+            body_dict["days"] = working_days
+            breakdown = _build_breakdown(start, end)
+        else:
+            body_dict = body.model_dump(exclude_none=True)
+            breakdown = []
+
+        return {
+            "pending_request": {
+                "type": result.type,
+                "body": body_dict,
+                "summary": result.summary,
+                "breakdown": breakdown,  # UI only — not persisted to DB
+            },
+            "clarification_question": None,
+        }
+
+    except Exception:
+        logger.exception("Request node failed — skipping request extraction")
+        return {"pending_request": None, "clarification_question": None}
+
+
+async def cancel_request_node(state: AgentState) -> dict[str, Any]:
+    """
+    Step 2d — Cancel an existing pending leave request.
+
+    Looks at the conversation history to find dates that were mentioned in a
+    conflict warning (e.g. "you have a pending request from Jun 6 to Jun 12").
+    Cancels the matching request, or falls back to the most recent pending leave
+    request if no specific match is found.
+    """
+    employee_id = state["employee_id"]
+
+    # Extract date hints from the AI messages in conversation history so we can
+    # match the specific request the user is referring to.
+    mentioned_dates: list[str] = []
+    for msg in state["messages"]:
+        if msg.type != "ai":
+            continue
+        content = str(msg.content)
+        # Scan for ISO dates like 2026-06-06 or keywords the conflict node emits
+        import re  # noqa: PLC0415
+        mentioned_dates.extend(re.findall(r"\d{4}-\d{2}-\d{2}", content))
+
+    try:
+        async with AsyncSessionLocal() as db:
+            rows = (
+                await db.execute(
+                    select(RequestHistory)
+                    .where(
+                        RequestHistory.employee_id == employee_id,
+                        RequestHistory.status == "pending",
+                        RequestHistory.type.in_(["vacation", "sick", "pto"]),
+                    )
+                    .order_by(RequestHistory.created_at.desc())
+                )
+            ).scalars().all()
+
+        if not rows:
+            return {"cancelled_request": None}
+
+        # Try to find the request whose dates were mentioned in the conversation
+        target = None
+        for row in rows:
+            if not row.body:
+                continue
+            try:
+                body = json.loads(row.body)
+                if body.get("start_date") in mentioned_dates or body.get("end_date") in mentioned_dates:
+                    target = row
+                    break
+            except (json.JSONDecodeError, KeyError):
+                continue
+
+        # Fall back to the most recent pending request
+        if target is None:
+            target = rows[0]
+
+        async with AsyncSessionLocal() as db:
+            row_to_cancel = await db.get(RequestHistory, target.id)
+            if row_to_cancel is None:
+                return {"cancelled_request": None}
+            row_to_cancel.status = "cancelled"
+            await db.commit()
+            await db.refresh(row_to_cancel)
+
+        cancelled_body = json.loads(row_to_cancel.body) if row_to_cancel.body else {}
+        return {
+            "cancelled_request": {
+                "id": row_to_cancel.id,
+                "type": str(row_to_cancel.type),
+                "start_date": cancelled_body.get("start_date"),
+                "end_date": cancelled_body.get("end_date"),
+                "days": cancelled_body.get("days"),
+            },
+        }
+
+    except Exception:
+        logger.exception("Cancel request node failed")
+        return {"cancelled_request": None}
+
+
 async def responder_node(state: AgentState) -> dict[str, Any]:
     """
     Step 3 — Final answer generation.
@@ -227,6 +681,42 @@ async def responder_node(state: AgentState) -> dict[str, Any]:
     intent = state.get("intent", [])
     rag_context = state.get("rag_context", "")
     db_context = state.get("db_context", "")
+    pending_request = state.get("pending_request") or {}
+    clarification_question = state.get("clarification_question") or ""
+    cancelled_request = state.get("cancelled_request")
+
+    # Cancel-request flow: confirm the cancellation to the user
+    if "cancel_request" in intent:
+        if cancelled_request:
+            req_type = cancelled_request.get("type", "request")
+            start = cancelled_request.get("start_date") or ""
+            end = cancelled_request.get("end_date") or ""
+            days = cancelled_request.get("days")
+
+            date_range = ""
+            if start:
+                try:
+                    s = _date.fromisoformat(start).strftime("%-d %B")
+                    e = _date.fromisoformat(end).strftime("%-d %B") if end else s
+                    date_range = f" from {s}" + (f" to {e}" if e != s else "")
+                except ValueError:
+                    pass
+            days_str = f" ({days} days)" if days else ""
+
+            prompt = (
+                f"You are MyPerks, a friendly HR assistant. "
+                f"The employee's pending {req_type} request{date_range}{days_str} "
+                "has just been successfully cancelled in the system. "
+                "Confirm this warmly in one sentence and offer to help them submit a new request if they wish."
+            )
+        else:
+            prompt = (
+                "You are MyPerks, a friendly HR assistant. "
+                "The employee asked to cancel a request but no matching pending request was found. "
+                "Let them know politely in one sentence."
+            )
+        response = await _llm.ainvoke([{"role": "user", "content": prompt}])
+        return {"messages": [AIMessage(content=str(response.content))]}
 
     # Build the context block from whichever sources were retrieved
     context_parts: list[str] = []
@@ -236,6 +726,36 @@ async def responder_node(state: AgentState) -> dict[str, Any]:
         context_parts.append(f"<employee_data>\n{db_context}\n</employee_data>")
 
     # Add an extra instruction when the user wants an email draft
+    email_note = (
+        "\n\nThe employee wants an email draft. Format your entire response as a "
+        "complete, ready-to-send professional email."
+        if "email" in intent
+        else ""
+    )
+
+    # Request flow: bypass the "ONLY the context below" constraint entirely so the
+    # LLM doesn't refuse when RAG/DB context is empty.
+    if "request" in intent and (clarification_question or pending_request):
+        if clarification_question:
+            prompt = (
+                f"You are MyPerks, a friendly HR assistant. "
+                f"The employee wants to submit an HR request but you need one more detail. "
+                f"Ask them this in a single, warm sentence: {clarification_question}"
+            )
+        else:
+            summary = pending_request.get("summary", "HR request")
+            req_type = pending_request.get("type", "request")
+            prompt = (
+                f"You are MyPerks, a friendly HR assistant. "
+                f"The employee's {req_type} request has been prepared: {summary}. "
+                "Acknowledge it warmly in 1–2 sentences and tell them to review the "
+                "confirmation card below and click 'Submit Request' to send it to HR."
+            )
+
+        response = await _llm.ainvoke([{"role": "user", "content": prompt}])
+        return {"messages": [AIMessage(content=str(response.content))]}
+
+    # Standard flow: use the full context + system prompt
     email_note = (
         "\n\nThe employee wants an email draft. Format your entire response as a "
         "complete, ready-to-send professional email."

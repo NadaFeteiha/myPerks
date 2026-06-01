@@ -18,6 +18,19 @@ export interface OnboardResponse {
   name: null | string;
 }
 
+export interface CreateRequestPayload {
+  body: Record<string, unknown>;
+  type: string;
+}
+
+export interface RequestHistoryItem {
+  body: null | string;
+  created_at: string;
+  id: number;
+  status: string;
+  type: string;
+}
+
 export function useApi() {
   const { getToken } = useAuth();
 
@@ -45,6 +58,8 @@ export function useApi() {
   }
 
   return {
+    createRequest: (payload: CreateRequestPayload) =>
+      apiPost<RequestHistoryItem>("/me/requests", payload),
     onboard: (body: OnboardRequest) =>
       apiPost<OnboardResponse>("/employees/me", body),
   };

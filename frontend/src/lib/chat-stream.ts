@@ -1,8 +1,23 @@
 import { logger } from "@sentry/nextjs";
 
+export interface BreakdownDay {
+  date: string;
+  day: string;
+  name?: string;
+  status: "holiday" | "weekend" | "work";
+}
+
+export interface PendingRequest {
+  body: Record<string, unknown>;
+  breakdown?: BreakdownDay[];
+  summary: string;
+  type: string;
+}
+
 export interface StreamChatOptions {
   conversationId: null | number;
   onConversationId: (id: number) => void;
+  onRequestConfirmation?: (request: PendingRequest) => void;
   onToken: (token: string) => void;
   question: string;
   token: string;
@@ -11,6 +26,7 @@ export interface StreamChatOptions {
 export async function streamChat({
   conversationId,
   onConversationId,
+  onRequestConfirmation,
   onToken,
   question,
   token,
@@ -69,6 +85,14 @@ export async function streamChat({
         }
         if (typeof parsed.text === "string") {
           onToken(parsed.text);
+        }
+        if (
+          parsed.type === "request_confirmation" &&
+          parsed.data !== null &&
+          typeof parsed.data === "object" &&
+          onRequestConfirmation
+        ) {
+          onRequestConfirmation(parsed.data as PendingRequest);
         }
       } catch {
         logger.warn("Failed to parse SSE data", { data });

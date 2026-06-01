@@ -1,6 +1,7 @@
 # backend/api/routers/dashboard.py
 
 import datetime
+import json
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
@@ -10,6 +11,7 @@ from api.auth import get_current_user
 from api.schemas.dashboard import (
     BenefitsSummaryResponse,
     BenefitSummaryItemSchema,
+    CreateRequestBody,
     LeaveBalanceSchema,
     RequestHistoryItemSchema,
     RequestHistoryResponse,
@@ -135,6 +137,45 @@ async def get_request_history(
             )
             for r in requests
         ],
+    )
+
+
+# ── POST /me/requests ─────────────────────────────────────────────────────────
+
+
+@router.post(
+    "/requests",
+    response_model=RequestHistoryItemSchema,
+    status_code=status.HTTP_201_CREATED,
+    summary="Submit a new HR request",
+)
+async def create_request(
+    body: CreateRequestBody,
+    db: AsyncSession = Depends(get_session),  # noqa: B008
+    clerk_user_id: str = Depends(get_current_user),  # noqa: B008
+) -> RequestHistoryItemSchema:
+    """
+    Creates a new HR request (vacation, sick, PTO, or reimbursement) with status
+    "pending". Called by the frontend after the user confirms the request in the chat.
+    """
+    employee = await _get_employee(clerk_user_id, db)
+
+    new_request = RequestHistory(
+        employee_id=employee.id,
+        type=body.type,
+        status="pending",
+        body=json.dumps(body.body),
+    )
+    db.add(new_request)
+    await db.commit()
+    await db.refresh(new_request)
+
+    return RequestHistoryItemSchema(
+        id=new_request.id,
+        type=new_request.type,
+        status=new_request.status,
+        created_at=new_request.created_at.isoformat(),
+        body=new_request.body,
     )
 
 

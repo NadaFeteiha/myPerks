@@ -1,5 +1,7 @@
 # backend/api/schemas/dashboard.py
 
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 
@@ -52,6 +54,13 @@ class RequestHistoryResponse(BaseModel):
     page: int = Field(ge=1, description="Current page number, 1-indexed")
     page_size: int = Field(ge=1, le=100, description="Number of items per page")
     items: list[RequestHistoryItemSchema]
+
+
+class CreateRequestBody(BaseModel):
+    """Request body for POST /me/requests."""
+
+    type: str
+    body: dict[str, Any]
 
 
 class BenefitSummaryItemSchema(BaseModel):

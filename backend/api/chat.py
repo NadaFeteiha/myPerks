@@ -94,9 +94,13 @@ async def chat(
         # First event carries the conversation_id so the client can track it
         yield f"data: {json.dumps({'conversation_id': conversation_id})}\n\n"
 
-        async for chunk in run_agent(employee_id, body.question, history):
-            collected.append(chunk)
-            yield f"data: {json.dumps({'text': chunk})}\n\n"
+        async for item in run_agent(employee_id, body.question, history):
+            if isinstance(item, str):
+                collected.append(item)
+                yield f"data: {json.dumps({'text': item})}\n\n"
+            elif isinstance(item, dict):
+                # Special event (e.g. request_confirmation) — pass through as-is
+                yield f"data: {json.dumps(item)}\n\n"
 
         yield "data: [DONE]\n\n"
 

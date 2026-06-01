@@ -11,7 +11,9 @@ const PAGE_SIZE = 10;
 // ---------------------------------------------------------------------------
 
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-US", {
+  // Parse as local date to avoid UTC-midnight-to-previous-day shift
+  const [year, month, day] = iso.split("T")[0].split("-").map(Number);
+  return new Date(year, month - 1, day).toLocaleDateString("en-US", {
     day: "numeric",
     month: "short",
     year: "numeric",
@@ -34,6 +36,29 @@ function getShortDescription(body: null | string): string {
   }
 }
 
+/**
+ * For leave requests, return "Jun 6 – Jun 12, 2026" using start/end from body.
+ * For reimbursements (no start_date), fall back to the submission date.
+ */
+function getRequestDate(item: RequestHistoryItem): string {
+  if (item.body) {
+    try {
+      const parsed = JSON.parse(item.body) as Record<string, unknown>;
+      if (typeof parsed.start_date === "string") {
+        const start = formatDate(parsed.start_date);
+        if (typeof parsed.end_date === "string") {
+          const end = formatDate(parsed.end_date);
+          return start === end ? start : `${start} – ${end}`;
+        }
+        return start;
+      }
+    } catch {
+      // fall through
+    }
+  }
+  return formatDate(item.created_at);
+}
+
 const STATUS_STYLES: Record<string, string> = {
   approved: "bg-green-100 text-green-800",
   cancelled: "bg-muted text-muted-foreground",
@@ -53,11 +78,14 @@ export default async function RequestsPage({
   const page = Math.max(1, parseInt(pageParam ?? "1", 10) || 1);
 
   let data: Awaited<ReturnType<typeof api.getRequestHistory>> | null = null;
+  let fetchError: string | null = null;
 
   try {
     data = await api.getRequestHistory(page, PAGE_SIZE);
   } catch (error: unknown) {
     console.error("[MyPerks] GET /me/requests failed:", error);
+    fetchError =
+      error instanceof Error ? error.message : "Could not load your requests.";
   }
 
   return (
@@ -71,7 +99,20 @@ export default async function RequestsPage({
         Requests
       </p>
 
-      {!data || data.items.length === 0 ? (
+      {fetchError ? (
+        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-destructive/40 py-16 text-center">
+          <p className="text-sm font-medium text-destructive">
+            Failed to load requests
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">{fetchError}</p>
+          <a
+            className="mt-4 text-xs font-medium text-brand-purple-600 hover:underline dark:text-brand-purple-400"
+            href="/requests"
+          >
+            Try again
+          </a>
+        </div>
+      ) : !data || data.items.length === 0 ? (
         <EmptyState />
       ) : (
         <>
@@ -86,7 +127,7 @@ export default async function RequestsPage({
                     Status
                   </th>
                   <th className="py-3 pr-4 text-center text-[10px] font-semibold uppercase tracking-[0.07em] text-muted-foreground">
-                    Date
+                    Dates
                   </th>
                   <th className="py-3 text-center text-[10px] font-semibold uppercase tracking-[0.07em] text-muted-foreground">
                     Description
@@ -177,7 +218,7 @@ function RequestRow({ item }: { item: RequestHistoryItem }) {
         <StatusBadge status={item.status} />
       </td>
       <td className="py-3 pr-4 text-sm text-center text-muted-foreground">
-        {formatDate(item.created_at)}
+        {getRequestDate(item)}
       </td>
       <td className="py-3 text-sm text-center text-muted-foreground">
         {getShortDescription(item.body)}
