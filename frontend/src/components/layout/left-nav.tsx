@@ -1,6 +1,12 @@
 "use client";
 
-import { History, LayoutDashboard, MessageCircle, Upload } from "lucide-react";
+import {
+  ClipboardList,
+  History,
+  LayoutDashboard,
+  MessageCircle,
+  Upload,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -18,6 +24,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/assistant", icon: MessageCircle, label: "AI Assistant" },
   { href: "/assistant/history", icon: History, label: "History" },
   { href: "/dashboard/upload", icon: Upload, label: "Documents" },
+  { href: "/requests", icon: ClipboardList, label: "My Requests" },
 ];
 
 export function LeftNav() {
