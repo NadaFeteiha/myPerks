@@ -33,7 +33,9 @@ export function AssistantClient() {
   const [isRegistered, setIsRegistered] = useState(false);
 
   // Pending request confirmation state
-  const [pendingRequest, setPendingRequest] = useState<null | PendingRequest>(null);
+  const [pendingRequest, setPendingRequest] = useState<null | PendingRequest>(
+    null,
+  );
   const [isSubmittingRequest, setIsSubmittingRequest] = useState(false);
   const [requestSubmitted, setRequestSubmitted] = useState(false);
   const [requestCancelled, setRequestCancelled] = useState(false);
@@ -216,7 +218,10 @@ export function AssistantClient() {
     if (!pendingRequest) return;
     setIsSubmittingRequest(true);
     try {
-      await api.createRequest({ body: pendingRequest.body, type: pendingRequest.type });
+      await api.createRequest({
+        body: pendingRequest.body,
+        type: pendingRequest.type,
+      });
       setRequestSubmitted(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to submit request");

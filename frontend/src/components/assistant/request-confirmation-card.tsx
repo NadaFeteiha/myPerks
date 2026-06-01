@@ -206,20 +206,28 @@ function WorkingDaysBreakdown({ breakdown }: { breakdown: BreakdownDay[] }) {
       <div className="flex flex-wrap gap-1">
         {breakdown.map((d) => {
           const [year, month, day] = d.date.split("-").map(Number);
-          const label = new Date(year, month - 1, day).toLocaleDateString("en-US", {
-            day: "numeric",
-            month: "short",
-          });
+          const label = new Date(year, month - 1, day).toLocaleDateString(
+            "en-US",
+            {
+              day: "numeric",
+              month: "short",
+            },
+          );
           return (
             <span
               className={cn(
                 "inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium",
-                d.status === "work" && "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
-                d.status === "weekend" && "bg-muted text-muted-foreground line-through",
-                d.status === "holiday" && "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300",
+                d.status === "work" &&
+                  "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
+                d.status === "weekend" &&
+                  "bg-muted text-muted-foreground line-through",
+                d.status === "holiday" &&
+                  "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300",
               )}
               key={d.date}
-              title={d.name ?? (d.status === "weekend" ? "Weekend" : "Working day")}
+              title={
+                d.name ?? (d.status === "weekend" ? "Weekend" : "Working day")
+              }
             >
               {d.day} {label}
               {d.status === "holiday" && " 🏛️"}
