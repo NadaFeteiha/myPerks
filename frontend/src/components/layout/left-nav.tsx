@@ -64,7 +64,7 @@ export function LeftNav() {
               {user?.name ?? ""}
             </p>
             <p className="text-[11px] text-muted-foreground">
-              {user?.role ?? ""}
+              {user?.department ?? ""}
             </p>
           </div>
         </Link>

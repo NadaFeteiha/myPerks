@@ -12,8 +12,8 @@ export function HeroBanner() {
         Hello, {user?.name?.split(" ")[0] ?? "there"}
       </p>
       <p className="mt-0.5 text-[12px] text-white/65">
-        {user?.role} · Joined {MOCK_USER_PROFILE.joinedDate} · Benefits year
-        resets {MOCK_USER_PROFILE.benefitsYearReset}
+        {user?.department} · Joined {MOCK_USER_PROFILE.joinedDate} · Benefits
+        year resets {MOCK_USER_PROFILE.benefitsYearReset}
       </p>
     </div>
   );
