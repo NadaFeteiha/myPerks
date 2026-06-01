@@ -5,7 +5,7 @@ from typing import cast
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
-from sqlalchemy import desc, func, select
+from sqlalchemy import desc, func, or_, select
 from sqlalchemy.orm import selectinload
 
 from api.chat import get_current_employee
@@ -39,6 +39,10 @@ class ConversationDetail(BaseModel):
     messages: list[MessageOut]
 
 
+class ConversationUpdate(BaseModel):
+    title: str
+
+
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
 TITLE_MAX_LEN = 60
@@ -62,6 +66,7 @@ def _derive_title(stored_title: str | None, first_user_message: str | None) -> s
 
 @router.get("", response_model=list[ConversationSummary])
 async def list_conversations(
+    q: str | None = None,
     employee: Employee = Depends(get_current_employee),  # noqa: B008
 ) -> list[ConversationSummary]:
     """List the current employee's conversations, newest first."""
@@ -107,6 +112,21 @@ async def list_conversations(
             .where(Conversation.employee_id == employee.id)
             .order_by(desc(Conversation.updated_at))
         )
+
+        if q is not None and q.strip():
+            pattern = f"%{q.strip()}%"
+            # Subquery: conversation IDs that have at least one matching message
+            matching_msg_conv_ids = (
+                select(Message.conversation_id)
+                .where(Message.content.ilike(pattern))
+                .scalar_subquery()
+            )
+            stmt = stmt.where(
+                or_(
+                    Conversation.title.ilike(pattern),
+                    Conversation.id.in_(matching_msg_conv_ids),
+                )
+            )
 
         rows = (await session.execute(stmt)).all()
 
@@ -161,3 +181,81 @@ async def get_conversation(
             for m in conversation.messages
         ],
     )
+
+
+@router.patch("/{conversation_id}", response_model=ConversationSummary)
+async def update_conversation(
+    conversation_id: int,
+    body: ConversationUpdate,
+    employee: Employee = Depends(get_current_employee),  # noqa: B008
+) -> ConversationSummary:
+    """Rename a conversation. Title is required and must be non-empty."""
+    new_title = body.title.strip()
+    if not new_title:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Title cannot be empty.",
+        )
+    if len(new_title) > 255:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Title must be 255 characters or fewer.",
+        )
+
+    async with AsyncSessionLocal() as session:
+        conversation = await session.scalar(
+            select(Conversation).where(
+                Conversation.id == conversation_id,
+                Conversation.employee_id == employee.id,
+            )
+        )
+        if conversation is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Conversation not found",
+            )
+
+        conversation.title = new_title  # type: ignore[assignment]
+        await session.commit()
+        await session.refresh(conversation)
+
+        message_count = (
+            await session.scalar(
+                select(func.count(Message.id)).where(
+                    Message.conversation_id == conversation.id
+                )
+            )
+            or 0
+        )
+
+    return ConversationSummary(
+        id=conversation.id,
+        title=cast(str | None, conversation.title) or "New conversation",
+        updated_at=conversation.updated_at,
+        message_count=message_count,
+    )
+
+
+@router.delete(
+    "/{conversation_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None
+)
+async def delete_conversation(
+    conversation_id: int,
+    employee: Employee = Depends(get_current_employee),  # noqa: B008
+) -> None:
+    """Delete a conversation. Messages cascade-delete via FK."""
+    async with AsyncSessionLocal() as session:
+        conversation = await session.scalar(
+            select(Conversation).where(
+                Conversation.id == conversation_id,
+                Conversation.employee_id == employee.id,
+            )
+        )
+        if conversation is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Conversation not found",
+            )
+
+        await session.delete(conversation)
+        await session.commit()
