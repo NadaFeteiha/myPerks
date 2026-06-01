@@ -11,11 +11,11 @@ Flow:
 
 import json
 import logging
-from datetime import UTC, date as _date, datetime, timedelta
+from datetime import UTC, datetime, timedelta
+from datetime import date as _date
 from typing import Any, Literal, cast
 
 import holidays as _holidays
-
 from langchain_core.messages import AIMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
@@ -34,6 +34,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Working-day helpers
 # ---------------------------------------------------------------------------
+
 
 def _count_working_days(start: _date, end: _date) -> int:
     """Count Mon–Fri days between start and end (inclusive), excluding US federal holidays."""
@@ -76,11 +77,24 @@ def _build_breakdown(start: _date, end: _date) -> list[dict[str, str]]:
     current = start
     while current <= end:
         if current.weekday() >= 5:
-            entry: dict[str, str] = {"date": current.isoformat(), "day": current.strftime("%a"), "status": "weekend"}
+            entry: dict[str, str] = {
+                "date": current.isoformat(),
+                "day": current.strftime("%a"),
+                "status": "weekend",
+            }
         elif current in federal_holidays:
-            entry = {"date": current.isoformat(), "day": current.strftime("%a"), "status": "holiday", "name": str(federal_holidays[current])}
+            entry = {
+                "date": current.isoformat(),
+                "day": current.strftime("%a"),
+                "status": "holiday",
+                "name": str(federal_holidays[current]),
+            }
         else:
-            entry = {"date": current.isoformat(), "day": current.strftime("%a"), "status": "work"}
+            entry = {
+                "date": current.isoformat(),
+                "day": current.strftime("%a"),
+                "status": "work",
+            }
         rows.append(entry)
         current += timedelta(days=1)
     return rows
@@ -123,14 +137,18 @@ async def _find_leave_conflict(
     try:
         async with AsyncSessionLocal() as db:
             rows = (
-                await db.execute(
-                    select(RequestHistory).where(
-                        RequestHistory.employee_id == employee_id,
-                        RequestHistory.status.in_(["pending", "approved"]),
-                        RequestHistory.type.in_(list(leave_types)),
+                (
+                    await db.execute(
+                        select(RequestHistory).where(
+                            RequestHistory.employee_id == employee_id,
+                            RequestHistory.status.in_(["pending", "approved"]),
+                            RequestHistory.type.in_(list(leave_types)),
+                        )
                     )
                 )
-            ).scalars().all()
+                .scalars()
+                .all()
+            )
     except Exception:
         logger.exception("Conflict check DB query failed")
         return None
@@ -286,13 +304,23 @@ _router_runnable = _llm.with_structured_output(_RouterOutput)
 class _RequestBody(BaseModel):
     """Fields for a structured HR request, all optional to cover both leave and reimbursement."""
 
-    start_date: str | None = Field(None, description="Start date (YYYY-MM-DD) for leave requests")
-    end_date: str | None = Field(None, description="Explicit end date (YYYY-MM-DD) — only set if the employee stated it directly")
-    requested_days: int | None = Field(None, description="Number of days the employee asked for (e.g. '5 days off') — set instead of end_date when the employee gives a count, not a date range")
+    start_date: str | None = Field(
+        None, description="Start date (YYYY-MM-DD) for leave requests"
+    )
+    end_date: str | None = Field(
+        None,
+        description="Explicit end date (YYYY-MM-DD) — only set if the employee stated it directly",
+    )
+    requested_days: int | None = Field(
+        None,
+        description="Number of days the employee asked for (e.g. '5 days off') — set instead of end_date when the employee gives a count, not a date range",
+    )
     reason: str | None = Field(None, description="Reason or notes for leave")
     amount: float | None = Field(None, description="Amount for reimbursement requests")
     currency: str = Field("USD", description="Currency code, default USD")
-    description: str | None = Field(None, description="Description for reimbursement requests")
+    description: str | None = Field(
+        None, description="Description for reimbursement requests"
+    )
 
 
 class _RequestOutput(BaseModel):
@@ -351,7 +379,9 @@ async def router_node(state: AgentState) -> dict[str, Any]:
         if msg.type == "human":
             messages_for_router.append({"role": "user", "content": str(msg.content)})
         elif msg.type == "ai":
-            messages_for_router.append({"role": "assistant", "content": str(msg.content)})
+            messages_for_router.append(
+                {"role": "assistant", "content": str(msg.content)}
+            )
 
     try:
         result = cast(
@@ -359,7 +389,11 @@ async def router_node(state: AgentState) -> dict[str, Any]:
             await _router_runnable.ainvoke(messages_for_router),
         )
         # Only keep valid intent values; discard anything unexpected
-        intent = [i for i in result.intent if i in ("rag", "db", "email", "request", "cancel_request")]
+        intent = [
+            i
+            for i in result.intent
+            if i in ("rag", "db", "email", "request", "cancel_request")
+        ]
     except Exception:
         logger.exception("Router failed — defaulting to rag")
         intent = ["rag"]
@@ -530,7 +564,9 @@ async def request_node(state: AgentState) -> dict[str, Any]:
 
             # Check leave balance — reject if requested days exceed what's remaining
             if result.type in ("vacation", "sick", "pto"):
-                remaining = await _get_remaining_leave(state["employee_id"], result.type)
+                remaining = await _get_remaining_leave(
+                    state["employee_id"], result.type
+                )
                 if remaining is not None and working_days > remaining:
                     remaining_int = int(remaining)
                     return {
@@ -551,8 +587,12 @@ async def request_node(state: AgentState) -> dict[str, Any]:
                 end=end,
             )
             if conflict:
-                existing_start = _date.fromisoformat(conflict["start_date"]).strftime("%-d %B")
-                existing_end = _date.fromisoformat(conflict["end_date"]).strftime("%-d %B")
+                existing_start = _date.fromisoformat(conflict["start_date"]).strftime(
+                    "%-d %B"
+                )
+                existing_end = _date.fromisoformat(conflict["end_date"]).strftime(
+                    "%-d %B"
+                )
                 return {
                     "pending_request": None,
                     "clarification_question": (
@@ -607,21 +647,26 @@ async def cancel_request_node(state: AgentState) -> dict[str, Any]:
         content = str(msg.content)
         # Scan for ISO dates like 2026-06-06 or keywords the conflict node emits
         import re  # noqa: PLC0415
+
         mentioned_dates.extend(re.findall(r"\d{4}-\d{2}-\d{2}", content))
 
     try:
         async with AsyncSessionLocal() as db:
             rows = (
-                await db.execute(
-                    select(RequestHistory)
-                    .where(
-                        RequestHistory.employee_id == employee_id,
-                        RequestHistory.status == "pending",
-                        RequestHistory.type.in_(["vacation", "sick", "pto"]),
+                (
+                    await db.execute(
+                        select(RequestHistory)
+                        .where(
+                            RequestHistory.employee_id == employee_id,
+                            RequestHistory.status == "pending",
+                            RequestHistory.type.in_(["vacation", "sick", "pto"]),
+                        )
+                        .order_by(RequestHistory.created_at.desc())
                     )
-                    .order_by(RequestHistory.created_at.desc())
                 )
-            ).scalars().all()
+                .scalars()
+                .all()
+            )
 
         if not rows:
             return {"cancelled_request": None}
@@ -633,7 +678,10 @@ async def cancel_request_node(state: AgentState) -> dict[str, Any]:
                 continue
             try:
                 body = json.loads(row.body)
-                if body.get("start_date") in mentioned_dates or body.get("end_date") in mentioned_dates:
+                if (
+                    body.get("start_date") in mentioned_dates
+                    or body.get("end_date") in mentioned_dates
+                ):
                     target = row
                     break
             except (json.JSONDecodeError, KeyError):
