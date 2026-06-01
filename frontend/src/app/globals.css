@@ -42,7 +42,9 @@
   --radius-xl: calc(var(--radius) + 4px);
   --color-surface-2: var(--surface-2);
   --color-surface-3: var(--surface-3);
+}
 
+@theme {
   /* Brand colors — static palette, same in light and dark */
   --color-brand-purple-50: #eeedfe;
   --color-brand-purple-100: #cecbf6;
