@@ -62,8 +62,8 @@ class VacationBalance(Base):
         Enum("vacation", "sick", "pto", name="leave_type"),
         nullable=False,
     )
-    total_days = Column(Float, nullable=False, default=0.0)
-    used_days = Column(Float, nullable=False, default=0.0)
+    total_days: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    used_days: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
     year = Column(Integer, nullable=False)
 
     employee = relationship("Employee", back_populates="vacation_balances")
@@ -81,7 +81,7 @@ class VacationBalance(Base):
 
     @property
     def remaining_days(self) -> float:
-        return cast(float, self.total_days - self.used_days)
+        return self.total_days - self.used_days
 
     def __repr__(self) -> str:
         return (

@@ -1,24 +1,11 @@
 import { api, type RequestHistoryItem } from "@/lib/api.server";
+import { formatIsoDate } from "@/lib/format";
 
 export const metadata = {
   title: "Request History — MyPerks",
 };
 
 const PAGE_SIZE = 10;
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function formatDate(iso: string): string {
-  // Parse as local date to avoid UTC-midnight-to-previous-day shift
-  const [year, month, day] = iso.split("T")[0].split("-").map(Number);
-  return new Date(year, month - 1, day).toLocaleDateString("en-US", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-}
 
 function formatType(type: string): string {
   if (type.toLowerCase() === "pto") return "PTO";
@@ -34,9 +21,9 @@ function getRequestDate(item: RequestHistoryItem): string {
     try {
       const parsed = JSON.parse(item.body) as Record<string, unknown>;
       if (typeof parsed.start_date === "string") {
-        const start = formatDate(parsed.start_date);
+        const start = formatIsoDate(parsed.start_date);
         if (typeof parsed.end_date === "string") {
-          const end = formatDate(parsed.end_date);
+          const end = formatIsoDate(parsed.end_date);
           return start === end ? start : `${start} – ${end}`;
         }
         return start;
@@ -45,7 +32,7 @@ function getRequestDate(item: RequestHistoryItem): string {
       // fall through
     }
   }
-  return formatDate(item.created_at);
+  return formatIsoDate(item.created_at);
 }
 
 function getShortDescription(body: null | string): string {

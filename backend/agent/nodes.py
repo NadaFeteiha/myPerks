@@ -11,6 +11,7 @@ Flow:
 
 import json
 import logging
+import re
 from datetime import UTC, datetime, timedelta
 from datetime import date as _date
 from typing import Any, Literal, cast
@@ -143,6 +144,10 @@ async def _find_leave_conflict(
                             RequestHistory.employee_id == employee_id,
                             RequestHistory.status.in_(["pending", "approved"]),
                             RequestHistory.type.in_(list(leave_types)),
+                            # Bound to requests submitted in the previous year or later;
+                            # leave requests for the target date range can't predate that.
+                            RequestHistory.created_at
+                            >= datetime(start.year - 1, 1, 1, tzinfo=UTC),
                         )
                     )
                 )
@@ -646,8 +651,6 @@ async def cancel_request_node(state: AgentState) -> dict[str, Any]:
             continue
         content = str(msg.content)
         # Scan for ISO dates like 2026-06-06 or keywords the conflict node emits
-        import re  # noqa: PLC0415
-
         mentioned_dates.extend(re.findall(r"\d{4}-\d{2}-\d{2}", content))
 
     try:
@@ -694,6 +697,8 @@ async def cancel_request_node(state: AgentState) -> dict[str, Any]:
         async with AsyncSessionLocal() as db:
             row_to_cancel = await db.get(RequestHistory, target.id)
             if row_to_cancel is None:
+                return {"cancelled_request": None}
+            if row_to_cancel.status != "pending":
                 return {"cancelled_request": None}
             row_to_cancel.status = "cancelled"
             await db.commit()

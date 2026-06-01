@@ -1,6 +1,6 @@
 # backend/api/schemas/dashboard.py
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -59,7 +59,7 @@ class RequestHistoryResponse(BaseModel):
 class CreateRequestBody(BaseModel):
     """Request body for POST /me/requests."""
 
-    type: str
+    type: Literal["vacation", "sick", "pto", "reimbursement"]
     body: dict[str, Any]
 
 

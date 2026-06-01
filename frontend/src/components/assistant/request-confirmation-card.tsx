@@ -6,6 +6,7 @@ import Link from "next/link";
 import type { BreakdownDay, PendingRequest } from "@/lib/chat-stream";
 
 import { cn } from "@/lib/cn";
+import { formatIsoDate } from "@/lib/format";
 
 interface Props {
   cancelled: boolean;
@@ -85,13 +86,13 @@ export function RequestConfirmationCard({
             {typeof body.start_date === "string" && (
               <RequestDetail
                 label="Start date"
-                value={formatDate(body.start_date)}
+                value={formatIsoDate(body.start_date)}
               />
             )}
             {typeof body.end_date === "string" && (
               <RequestDetail
                 label="End date"
-                value={formatDate(body.end_date)}
+                value={formatIsoDate(body.end_date)}
               />
             )}
             {typeof body.days === "number" && (
@@ -169,15 +170,6 @@ export function RequestConfirmationCard({
       </div>
     </div>
   );
-}
-
-function formatDate(iso: string): string {
-  const [year, month, day] = iso.split("-").map(Number);
-  return new Date(year, month - 1, day).toLocaleDateString("en-US", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
 }
 
 function formatType(type: string): string {

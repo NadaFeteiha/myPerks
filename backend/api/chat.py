@@ -92,14 +92,14 @@ async def chat(
 
     async def event_stream() -> AsyncGenerator[str, None]:
         # First event carries the conversation_id so the client can track it
-        yield f"data: {json.dumps({'conversation_id': conversation_id})}\n\n"
+        yield f"data: {json.dumps({'type': 'conversation_id', 'data': conversation_id})}\n\n"
 
         async for item in run_agent(employee_id, body.question, history):
             if isinstance(item, str):
                 collected.append(item)
-                yield f"data: {json.dumps({'text': item})}\n\n"
+                yield f"data: {json.dumps({'type': 'text', 'data': item})}\n\n"
             elif isinstance(item, dict):
-                # Special event (e.g. request_confirmation) — pass through as-is
+                # Special events (e.g. request_confirmation) already carry type+data
                 yield f"data: {json.dumps(item)}\n\n"
 
         yield "data: [DONE]\n\n"

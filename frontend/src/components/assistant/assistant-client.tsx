@@ -43,6 +43,7 @@ export function AssistantClient() {
   const conversationIdRef = useRef<null | number>(null);
   const registeredRef = useRef(false);
   const loadedConversationRef = useRef<null | number>(null);
+  const isSubmittingRef = useRef(false);
 
   useEffect(() => {
     if (!user || registeredRef.current) return;
@@ -207,7 +208,8 @@ export function AssistantClient() {
   }, [conversationParam, router]);
 
   const handleSubmitRequest = useCallback(async () => {
-    if (!pendingRequest) return;
+    if (!pendingRequest || isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
     setIsSubmittingRequest(true);
     try {
       await api.createRequest({
@@ -218,6 +220,7 @@ export function AssistantClient() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to submit request");
     } finally {
+      isSubmittingRef.current = false;
       setIsSubmittingRequest(false);
     }
   }, [pendingRequest, api]);

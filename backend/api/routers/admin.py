@@ -84,7 +84,7 @@ async def approve_or_reject_request(
             ).scalar_one_or_none()
 
             if balance is not None:
-                balance.used_days = cast(float, balance.used_days) + days  # type: ignore[assignment]
+                balance.used_days += days
 
     # Store rejection reason inside the request body
     if body.status == "rejected" and body.rejection_reason:
@@ -97,13 +97,17 @@ async def approve_or_reject_request(
     # Fetch updated balances to return in response
     current_year = datetime.now(UTC).year
     balances = (
-        await db.execute(
-            select(VacationBalance).where(
-                VacationBalance.employee_id == req.employee_id,
-                VacationBalance.year == current_year,
+        (
+            await db.execute(
+                select(VacationBalance).where(
+                    VacationBalance.employee_id == req.employee_id,
+                    VacationBalance.year == current_year,
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     return ApproveRejectResponse(
         request_id=cast(int, req.id),
