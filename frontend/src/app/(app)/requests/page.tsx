@@ -46,12 +46,12 @@ function getShortDescription(body: null | string): string {
   }
 }
 
-const STATUS_STYLES: Record<string, string> = {
-  approved: "bg-green-100 text-green-800",
-  cancelled: "bg-muted text-muted-foreground",
-  pending: "bg-yellow-100 text-yellow-800",
-  rejected: "bg-red-100 text-red-800",
-};
+const STATUS_STYLES = new Map([
+  ["approved", "bg-green-100 text-green-800"],
+  ["cancelled", "bg-muted text-muted-foreground"],
+  ["pending", "bg-yellow-100 text-yellow-800"],
+  ["rejected", "bg-red-100 text-red-800"],
+]);
 
 // ---------------------------------------------------------------------------
 // Page
@@ -218,9 +218,7 @@ function RequestRow({ item }: { item: RequestHistoryItem }) {
 // Status badge
 // ---------------------------------------------------------------------------
 function StatusBadge({ status }: { status: string }) {
-  const classes = Object.hasOwn(STATUS_STYLES, status)
-    ? STATUS_STYLES[status]
-    : "bg-muted text-muted-foreground";
+  const classes = STATUS_STYLES.get(status) ?? "bg-muted text-muted-foreground";
   return (
     <span
       className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize ${classes}`}

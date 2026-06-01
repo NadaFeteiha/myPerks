@@ -80,7 +80,10 @@ export async function streamChat({
 
       try {
         const parsed = JSON.parse(data) as Record<string, unknown>;
-        if (parsed.type === "conversation_id" && typeof parsed.data === "number") {
+        if (
+          parsed.type === "conversation_id" &&
+          typeof parsed.data === "number"
+        ) {
           onConversationId(parsed.data);
         } else if (parsed.type === "text" && typeof parsed.data === "string") {
           onToken(parsed.data);

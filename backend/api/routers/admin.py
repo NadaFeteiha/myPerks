@@ -119,8 +119,8 @@ async def approve_or_reject_request(
         updated_balances=[
             BalanceSnapshot(
                 leave_type=b.leave_type,
-                total_days=cast(float, b.total_days),
-                used_days=cast(float, b.used_days),
+                total_days=b.total_days,
+                used_days=b.used_days,
                 remaining_days=b.remaining_days,
             )
             for b in balances

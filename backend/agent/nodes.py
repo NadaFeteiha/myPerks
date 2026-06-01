@@ -41,7 +41,9 @@ def _count_working_days(start: _date, end: _date) -> int:
     """Count Mon–Fri days between start and end (inclusive), excluding US federal holidays."""
     if end < start:
         return 0
-    federal_holidays = _holidays.US(years=range(start.year, end.year + 1))
+    federal_holidays = _holidays.country_holidays(
+        "US", years=range(start.year, end.year + 1)
+    )
     count = 0
     current = start
     while current <= end:
@@ -55,7 +57,9 @@ def _add_working_days(start: _date, num_days: int) -> _date:
     """Return the date that is exactly `num_days` working days from start (inclusive)."""
     if num_days <= 0:
         return start
-    federal_holidays = _holidays.US(years=range(start.year, start.year + 2))
+    federal_holidays = _holidays.country_holidays(
+        "US", years=range(start.year, start.year + 2)
+    )
     count = 0
     current = start
     while True:
@@ -73,7 +77,9 @@ def _build_breakdown(start: _date, end: _date) -> list[dict[str, str]]:
     """
     if end < start:
         return []
-    federal_holidays = _holidays.US(years=range(start.year, end.year + 1))
+    federal_holidays = _holidays.country_holidays(
+        "US", years=range(start.year, end.year + 1)
+    )
     rows: list[dict[str, str]] = []
     current = start
     while current <= end:
@@ -162,7 +168,7 @@ async def _find_leave_conflict(
         if not row.body:
             continue
         try:
-            body = json.loads(row.body)
+            body = json.loads(cast(str, row.body))
             ex_start = _date.fromisoformat(body["start_date"])
             ex_end = _date.fromisoformat(body["end_date"])
         except (KeyError, ValueError):
@@ -379,7 +385,7 @@ async def router_node(state: AgentState) -> dict[str, Any]:
     (e.g. "jun 8" after being asked for a start date) are classified correctly
     as continuations of the ongoing intent.
     """
-    messages_for_router: list = [SystemMessage(content=_ROUTER_PROMPT)]
+    messages_for_router: list[Any] = [SystemMessage(content=_ROUTER_PROMPT)]
     for msg in state["messages"]:
         if msg.type == "human":
             messages_for_router.append({"role": "user", "content": str(msg.content)})
@@ -508,7 +514,7 @@ async def request_node(state: AgentState) -> dict[str, Any]:
     year_str = str(now.year)
 
     # Pass full message history so multi-turn clarifications are visible to the LLM
-    messages_for_llm = [
+    messages_for_llm: list[Any] = [
         SystemMessage(content=_REQUEST_PROMPT.format(today=today_str, year=year_str))
     ]
     for msg in state["messages"]:
@@ -680,7 +686,7 @@ async def cancel_request_node(state: AgentState) -> dict[str, Any]:
             if not row.body:
                 continue
             try:
-                body = json.loads(row.body)
+                body = json.loads(cast(str, row.body))
                 if (
                     body.get("start_date") in mentioned_dates
                     or body.get("end_date") in mentioned_dates
@@ -704,7 +710,9 @@ async def cancel_request_node(state: AgentState) -> dict[str, Any]:
             await db.commit()
             await db.refresh(row_to_cancel)
 
-        cancelled_body = json.loads(row_to_cancel.body) if row_to_cancel.body else {}
+        cancelled_body = (
+            json.loads(cast(str, row_to_cancel.body)) if row_to_cancel.body else {}
+        )
         return {
             "cancelled_request": {
                 "id": row_to_cancel.id,

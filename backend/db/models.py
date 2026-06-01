@@ -4,7 +4,6 @@ backend/db/models.py
 """
 
 from datetime import UTC, datetime
-from typing import cast
 
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
