@@ -47,7 +47,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .catch((err: unknown) => {
         console.error("[MyPerks] Failed to load user profile:", err);
       });
-  }, [isSignedIn]);
+  }, [isSignedIn, api]);
 
   return (
     <AuthContext.Provider value={{ isAuthenticated: !!isSignedIn, user }}>

@@ -36,6 +36,7 @@ apscheduler==3.10.4
 python-dotenv==1.0.1
 pydantic==2.10.3
 pydantic-settings==2.7.0
+holidays==0.62
 
 # ──── Dev / Lint / Test ────
 ruff==0.8.4

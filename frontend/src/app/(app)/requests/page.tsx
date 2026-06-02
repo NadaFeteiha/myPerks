@@ -1,4 +1,5 @@
 import { api, type RequestHistoryItem } from "@/lib/api.server";
+import { formatIsoDate } from "@/lib/format";
 
 export const metadata = {
   title: "Request History — MyPerks",
@@ -6,21 +7,32 @@ export const metadata = {
 
 const PAGE_SIZE = 10;
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-US", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-}
-
 function formatType(type: string): string {
   if (type.toLowerCase() === "pto") return "PTO";
   return type.charAt(0).toUpperCase() + type.slice(1);
+}
+
+/**
+ * For leave requests, return "Jun 6 – Jun 12, 2026" using start/end from body.
+ * For reimbursements (no start_date), fall back to the submission date.
+ */
+function getRequestDate(item: RequestHistoryItem): string {
+  if (item.body) {
+    try {
+      const parsed = JSON.parse(item.body) as Record<string, unknown>;
+      if (typeof parsed.start_date === "string") {
+        const start = formatIsoDate(parsed.start_date);
+        if (typeof parsed.end_date === "string") {
+          const end = formatIsoDate(parsed.end_date);
+          return start === end ? start : `${start} – ${end}`;
+        }
+        return start;
+      }
+    } catch {
+      // fall through
+    }
+  }
+  return formatIsoDate(item.created_at);
 }
 
 function getShortDescription(body: null | string): string {
@@ -34,12 +46,12 @@ function getShortDescription(body: null | string): string {
   }
 }
 
-const STATUS_STYLES: Record<string, string> = {
-  approved: "bg-green-100 text-green-800",
-  cancelled: "bg-muted text-muted-foreground",
-  pending: "bg-yellow-100 text-yellow-800",
-  rejected: "bg-red-100 text-red-800",
-};
+const STATUS_STYLES = new Map([
+  ["approved", "bg-green-100 text-green-800"],
+  ["cancelled", "bg-muted text-muted-foreground"],
+  ["pending", "bg-yellow-100 text-yellow-800"],
+  ["rejected", "bg-red-100 text-red-800"],
+]);
 
 // ---------------------------------------------------------------------------
 // Page
@@ -53,11 +65,14 @@ export default async function RequestsPage({
   const page = Math.max(1, parseInt(pageParam ?? "1", 10) || 1);
 
   let data: Awaited<ReturnType<typeof api.getRequestHistory>> | null = null;
+  let fetchError: null | string = null;
 
   try {
     data = await api.getRequestHistory(page, PAGE_SIZE);
   } catch (error: unknown) {
     console.error("[MyPerks] GET /me/requests failed:", error);
+    fetchError =
+      error instanceof Error ? error.message : "Could not load your requests.";
   }
 
   return (
@@ -71,7 +86,20 @@ export default async function RequestsPage({
         Requests
       </p>
 
-      {!data || data.items.length === 0 ? (
+      {fetchError ? (
+        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-destructive/40 py-16 text-center">
+          <p className="text-sm font-medium text-destructive">
+            Failed to load requests
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">{fetchError}</p>
+          <a
+            className="mt-4 text-xs font-medium text-brand-purple-600 hover:underline dark:text-brand-purple-400"
+            href="/requests"
+          >
+            Try again
+          </a>
+        </div>
+      ) : !data || data.items.length === 0 ? (
         <EmptyState />
       ) : (
         <>
@@ -86,7 +114,7 @@ export default async function RequestsPage({
                     Status
                   </th>
                   <th className="py-3 pr-4 text-center text-[10px] font-semibold uppercase tracking-[0.07em] text-muted-foreground">
-                    Date
+                    Dates
                   </th>
                   <th className="py-3 text-center text-[10px] font-semibold uppercase tracking-[0.07em] text-muted-foreground">
                     Description
@@ -177,7 +205,7 @@ function RequestRow({ item }: { item: RequestHistoryItem }) {
         <StatusBadge status={item.status} />
       </td>
       <td className="py-3 pr-4 text-sm text-center text-muted-foreground">
-        {formatDate(item.created_at)}
+        {getRequestDate(item)}
       </td>
       <td className="py-3 text-sm text-center text-muted-foreground">
         {getShortDescription(item.body)}
@@ -190,7 +218,7 @@ function RequestRow({ item }: { item: RequestHistoryItem }) {
 // Status badge
 // ---------------------------------------------------------------------------
 function StatusBadge({ status }: { status: string }) {
-  const classes = STATUS_STYLES[status] ?? "bg-muted text-muted-foreground";
+  const classes = STATUS_STYLES.get(status) ?? "bg-muted text-muted-foreground";
   return (
     <span
       className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize ${classes}`}

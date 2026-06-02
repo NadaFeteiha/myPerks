@@ -5,11 +5,14 @@ import { Pencil } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import type { PendingRequest } from "@/lib/chat-stream";
 import type { Message } from "@/types/chat";
 
 import { ChatInput } from "@/components/assistant/chat-input";
 import { ChatMessages } from "@/components/assistant/chat-messages";
+import { RequestConfirmationCard } from "@/components/assistant/request-confirmation-card";
 import { WelcomeScreen } from "@/components/assistant/welcome-screen";
+import { useApi } from "@/lib/api.client";
 import { streamChat } from "@/lib/chat-stream";
 import { getConversation } from "@/lib/conversations";
 
@@ -18,6 +21,7 @@ export function AssistantClient() {
   const { user } = useUser();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const api = useApi();
 
   const conversationParam = searchParams.get("conversation");
 
@@ -28,9 +32,18 @@ export function AssistantClient() {
   // Chat is locked until the employee row is confirmed to exist
   const [isRegistered, setIsRegistered] = useState(false);
 
+  // Pending request confirmation state
+  const [pendingRequest, setPendingRequest] = useState<null | PendingRequest>(
+    null,
+  );
+  const [isSubmittingRequest, setIsSubmittingRequest] = useState(false);
+  const [requestSubmitted, setRequestSubmitted] = useState(false);
+  const [requestCancelled, setRequestCancelled] = useState(false);
+
   const conversationIdRef = useRef<null | number>(null);
   const registeredRef = useRef(false);
   const loadedConversationRef = useRef<null | number>(null);
+  const isSubmittingRef = useRef(false);
 
   useEffect(() => {
     if (!user || registeredRef.current) return;
@@ -139,10 +152,18 @@ export function AssistantClient() {
         const token = await getToken();
         if (!token) throw new Error("Not authenticated");
 
+        // Reset any previous pending request when starting a new message
+        setPendingRequest(null);
+        setRequestSubmitted(false);
+        setRequestCancelled(false);
+
         await streamChat({
           conversationId: conversationIdRef.current,
           onConversationId: (id) => {
             conversationIdRef.current = id;
+          },
+          onRequestConfirmation: (req) => {
+            setPendingRequest(req);
           },
           onToken: (chunk) => {
             setMessages((prev) =>
@@ -177,11 +198,42 @@ export function AssistantClient() {
     loadedConversationRef.current = null;
     setMessages([]);
     setError(null);
+    setPendingRequest(null);
+    setRequestSubmitted(false);
+    setRequestCancelled(false);
     // Strip ?conversation=… from the URL without reloading
     if (conversationParam) {
       router.replace("/assistant");
     }
   }, [conversationParam, router]);
+
+  const handleSubmitRequest = useCallback(async () => {
+    if (!pendingRequest || isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
+    setIsSubmittingRequest(true);
+    try {
+      await api.createRequest({
+        body: pendingRequest.body,
+        type: pendingRequest.type,
+      });
+      setRequestSubmitted(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to submit request");
+    } finally {
+      isSubmittingRef.current = false;
+      setIsSubmittingRequest(false);
+    }
+  }, [pendingRequest, api]);
+
+  const handleCancelRequest = useCallback(() => {
+    setRequestCancelled(true);
+  }, []);
+
+  const handleDismissRequest = useCallback(() => {
+    setPendingRequest(null);
+    setRequestSubmitted(false);
+    setRequestCancelled(false);
+  }, []);
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
@@ -215,6 +267,20 @@ export function AssistantClient() {
       ) : (
         <div className="flex flex-1 flex-col items-center overflow-y-auto px-6 py-8">
           <ChatMessages messages={messages} />
+        </div>
+      )}
+
+      {pendingRequest && (
+        <div className="shrink-0 px-5 pb-3">
+          <RequestConfirmationCard
+            cancelled={requestCancelled}
+            isSubmitting={isSubmittingRequest}
+            onCancel={handleCancelRequest}
+            onDismiss={handleDismissRequest}
+            onSubmit={() => void handleSubmitRequest()}
+            request={pendingRequest}
+            submitted={requestSubmitted}
+          />
         </div>
       )}
 

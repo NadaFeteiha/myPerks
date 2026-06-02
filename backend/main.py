@@ -6,6 +6,7 @@ from sqlalchemy import select
 
 from api.chat import router as chat_router
 from api.conversations import router as conversations_router
+from api.routers.admin import router as admin_router
 from api.routers.dashboard import router as dashboard_router
 from api.routers.employees import router as employees_router
 from api.upload import router as upload_router
@@ -23,6 +24,7 @@ app.add_middleware(
     allow_origins=settings.allowed_origins,
 )
 
+app.include_router(admin_router)
 app.include_router(dashboard_router)
 app.include_router(employees_router)
 app.include_router(upload_router)
