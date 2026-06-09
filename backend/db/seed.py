@@ -6,9 +6,10 @@ Usage:
     python -m db.seed
 
 Populates the database with realistic dev data:
-- 3 employees
-- vacation balances (vacation, sick, pto) per employee for current year
+- 3 employees + 1 HR admin
+- vacation balances (vacation, sick, pto) per person for current year
 - sample request histories
+- sample conversations
 """
 
 import asyncio
@@ -27,6 +28,8 @@ from db.models import (
 from db.session import AsyncSessionLocal
 
 CURRENT_YEAR = datetime.datetime.now().year
+# Benefits year resets on Jan 1. Banner (T37) shows the upcoming reset date.
+BENEFITS_YEAR_RESET = datetime.date(CURRENT_YEAR + 1, 1, 1)
 
 
 async def clear_data(session: AsyncSession) -> None:
@@ -48,25 +51,53 @@ async def seed_employees(session: AsyncSession) -> list[Employee]:
             clerk_user_id="clerk_user_001",
             name="Alice Johnson",
             email="alice.johnson@myperks.dev",
-            department="Engineering",
+            role="employee",
+            department="engineering",
+            joined_date=datetime.date(2022, 3, 1),
+            benefits_year_reset=BENEFITS_YEAR_RESET,
         ),
         Employee(
             clerk_user_id="clerk_user_002",
             name="Bob Martinez",
             email="bob.martinez@myperks.dev",
-            department="Human Resources",
+            role="employee",
+            department="hr",
+            joined_date=datetime.date(2021, 7, 15),
+            benefits_year_reset=BENEFITS_YEAR_RESET,
         ),
         Employee(
             clerk_user_id="clerk_user_003",
             name="Carol Chen",
             email="carol.chen@myperks.dev",
-            department="Marketing",
+            role="employee",
+            department="marketing",
+            joined_date=datetime.date(2023, 9, 12),
+            benefits_year_reset=BENEFITS_YEAR_RESET,
         ),
     ]
     session.add_all(employees)
     await session.flush()  # get IDs without committing
     print(f"✓ Seeded {len(employees)} employees")
     return employees
+
+
+async def seed_hr_admin(session: AsyncSession) -> Employee:
+    # Pre-created, UNLINKED row: clerk_user_id is None until this person signs in
+    # through Clerk, at which point onboarding links it by email (T27). For that
+    # link to work, the email below MUST be the real address you log in with.
+    hr_admin = Employee(
+        clerk_user_id=None,
+        name="HR Admin",
+        email="aymanlahmamsi@gmail.com",  # TODO: set before seeding
+        role="hr_admin",
+        department="hr",
+        joined_date=datetime.date(2020, 1, 6),
+        benefits_year_reset=BENEFITS_YEAR_RESET,
+    )
+    session.add(hr_admin)
+    await session.flush()
+    print("✓ Seeded 1 HR admin (unlinked — links by email on first login)")
+    return hr_admin
 
 
 async def seed_vacation_balances(
@@ -271,7 +302,9 @@ async def seed() -> None:
         print("\n🌱 Starting seed...\n")
         await clear_data(session)
         employees = await seed_employees(session)
-        await seed_vacation_balances(session, employees)
+        hr_admin = await seed_hr_admin(session)
+        # HR admin gets balances too (they're staff with their own leave).
+        await seed_vacation_balances(session, [*employees, hr_admin])
         await seed_request_histories(session, employees)
         await seed_conversations(session, employees)
         await session.commit()
