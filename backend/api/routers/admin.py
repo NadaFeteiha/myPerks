@@ -10,18 +10,151 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime
+from math import ceil
 from typing import cast
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from api.auth import require_admin
-from api.schemas.admin import ApproveRejectBody, ApproveRejectResponse, BalanceSnapshot
+from api.schemas.admin import (
+    ApproveRejectBody,
+    ApproveRejectResponse,
+    BalanceSnapshot,
+    EmployeeDetail,
+    EmployeeListItem,
+    PaginatedEmployees,
+    RequestHistorySnapshot,
+)
 from db.models import Employee, RequestHistory, VacationBalance
 from db.session import get_session
 
 router = APIRouter(prefix="/admin", tags=["admin"])
+
+
+@router.get(
+    "/employees",
+    response_model=PaginatedEmployees,
+    summary="List all employees (paginated, searchable)",
+)
+async def list_employees(
+    page: int = 1,
+    size: int = 10,
+    q: str | None = None,
+    db: AsyncSession = Depends(get_session),  # noqa: B008
+    _admin: Employee = Depends(require_admin),  # noqa: B008
+) -> PaginatedEmployees:
+    if size < 1:
+        size = 1
+    if size > 100:
+        size = 100
+    if page < 1:
+        page = 1
+
+    base_query = select(Employee)
+    count_query = select(func.count()).select_from(Employee)
+
+    if q:
+        pattern = f"%{q}%"
+        filter_clause = or_(
+            Employee.name.ilike(pattern),
+            Employee.email.ilike(pattern),
+        )
+        base_query = base_query.where(filter_clause)
+        count_query = count_query.where(filter_clause)
+
+    total: int = cast(int, await db.scalar(count_query)) or 0
+
+    rows = (
+        (
+            await db.execute(
+                base_query.order_by(Employee.name).offset((page - 1) * size).limit(size)
+            )
+        )
+        .scalars()
+        .all()
+    )
+
+    return PaginatedEmployees(
+        items=[
+            EmployeeListItem(
+                id=cast(int, e.id),
+                name=e.name,
+                email=e.email,
+                department=e.department,
+                role=e.role,
+                joined_date=e.joined_date,
+                linked=e.clerk_user_id is not None,
+            )
+            for e in rows
+        ],
+        total=total,
+        page=page,
+        size=size,
+        pages=ceil(total / size) if total else 0,
+    )
+
+
+@router.get(
+    "/employees/{employee_id}",
+    response_model=EmployeeDetail,
+    summary="Get a single employee with balances and request history",
+)
+async def get_employee_detail(
+    employee_id: int,
+    db: AsyncSession = Depends(get_session),  # noqa: B008
+    _admin: Employee = Depends(require_admin),  # noqa: B008
+) -> EmployeeDetail:
+    emp = (
+        await db.execute(
+            select(Employee)
+            .options(
+                selectinload(Employee.vacation_balances),
+                selectinload(Employee.request_histories),
+            )
+            .where(Employee.id == employee_id)
+        )
+    ).scalar_one_or_none()
+
+    if emp is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Employee not found",
+        )
+
+    return EmployeeDetail(
+        id=cast(int, emp.id),
+        name=emp.name,
+        email=emp.email,
+        department=emp.department,
+        role=emp.role,
+        joined_date=emp.joined_date,
+        benefits_year_reset=emp.benefits_year_reset,
+        linked=emp.clerk_user_id is not None,
+        balances=[
+            BalanceSnapshot(
+                leave_type=b.leave_type,
+                total_days=b.total_days,
+                used_days=b.used_days,
+                remaining_days=b.remaining_days,
+            )
+            for b in emp.vacation_balances
+        ],
+        request_history=[
+            RequestHistorySnapshot(
+                id=cast(int, r.id),
+                type=cast(str, r.type),
+                status=cast(str, r.status),
+                created_at=r.created_at,
+                body=cast(str | None, r.body),
+            )
+            for r in sorted(
+                emp.request_histories, key=lambda r: r.created_at, reverse=True
+            )
+        ],
+    )
 
 
 @router.patch(
