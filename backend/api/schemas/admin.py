@@ -63,5 +63,5 @@ class EmployeeDetail(BaseModel):
     joined_date: date
     benefits_year_reset: date
     linked: bool
-    balances: list[BalanceSnapshot]          # reuses existing schema
+    balances: list[BalanceSnapshot]  # reuses existing schema
     request_history: list[RequestHistorySnapshot]

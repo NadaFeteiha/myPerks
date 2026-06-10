@@ -136,12 +136,8 @@ class TestListEmployees:
         emp = make_employee()
         mock_session = make_session(scalar_return=make_admin_employee())
         # scalar() for count, execute() for rows
-        mock_session.scalar = AsyncMock(
-            side_effect=[make_admin_employee(), 1]
-        )
-        mock_session.execute = AsyncMock(
-            return_value=make_scalars_all_result([emp])
-        )
+        mock_session.scalar = AsyncMock(side_effect=[make_admin_employee(), 1])
+        mock_session.execute = AsyncMock(return_value=make_scalars_all_result([emp]))
 
         app.dependency_overrides[get_current_user] = override_auth
         app.dependency_overrides[get_session] = make_db_override(mock_session)
@@ -162,9 +158,7 @@ class TestListEmployees:
         emp = make_employee()
         mock_session = make_session(scalar_return=make_admin_employee())
         mock_session.scalar = AsyncMock(side_effect=[make_admin_employee(), 1])
-        mock_session.execute = AsyncMock(
-            return_value=make_scalars_all_result([emp])
-        )
+        mock_session.execute = AsyncMock(return_value=make_scalars_all_result([emp]))
 
         app.dependency_overrides[get_current_user] = override_auth
         app.dependency_overrides[get_session] = make_db_override(mock_session)
@@ -175,7 +169,13 @@ class TestListEmployees:
 
         item = response.json()["items"][0]
         for field in (
-            "id", "name", "email", "department", "role", "joined_date", "linked"
+            "id",
+            "name",
+            "email",
+            "department",
+            "role",
+            "joined_date",
+            "linked",
         ):
             assert field in item, f"missing field: {field}"
 
@@ -183,9 +183,7 @@ class TestListEmployees:
         emp = make_employee(clerk_user_id="clerk_emp_001")
         mock_session = make_session(scalar_return=make_admin_employee())
         mock_session.scalar = AsyncMock(side_effect=[make_admin_employee(), 1])
-        mock_session.execute = AsyncMock(
-            return_value=make_scalars_all_result([emp])
-        )
+        mock_session.execute = AsyncMock(return_value=make_scalars_all_result([emp]))
 
         app.dependency_overrides[get_current_user] = override_auth
         app.dependency_overrides[get_session] = make_db_override(mock_session)
@@ -200,9 +198,7 @@ class TestListEmployees:
         emp = make_employee(clerk_user_id=None)
         mock_session = make_session(scalar_return=make_admin_employee())
         mock_session.scalar = AsyncMock(side_effect=[make_admin_employee(), 1])
-        mock_session.execute = AsyncMock(
-            return_value=make_scalars_all_result([emp])
-        )
+        mock_session.execute = AsyncMock(return_value=make_scalars_all_result([emp]))
 
         app.dependency_overrides[get_current_user] = override_auth
         app.dependency_overrides[get_session] = make_db_override(mock_session)
@@ -259,9 +255,7 @@ class TestGetEmployeeDetail:
         emp.request_histories = [make_request_history()]
 
         mock_session = make_session(scalar_return=make_admin_employee())
-        mock_session.execute = AsyncMock(
-            return_value=make_scalar_one_result(emp)
-        )
+        mock_session.execute = AsyncMock(return_value=make_scalar_one_result(emp))
 
         app.dependency_overrides[get_current_user] = override_auth
         app.dependency_overrides[get_session] = make_db_override(mock_session)
@@ -273,9 +267,16 @@ class TestGetEmployeeDetail:
         assert response.status_code == 200
         data = response.json()
         for field in (
-            "id", "name", "email", "department", "role",
-            "joined_date", "benefits_year_reset", "linked",
-            "balances", "request_history",
+            "id",
+            "name",
+            "email",
+            "department",
+            "role",
+            "joined_date",
+            "benefits_year_reset",
+            "linked",
+            "balances",
+            "request_history",
         ):
             assert field in data, f"missing field: {field}"
 
@@ -285,9 +286,7 @@ class TestGetEmployeeDetail:
         emp.request_histories = []
 
         mock_session = make_session(scalar_return=make_admin_employee())
-        mock_session.execute = AsyncMock(
-            return_value=make_scalar_one_result(emp)
-        )
+        mock_session.execute = AsyncMock(return_value=make_scalar_one_result(emp))
 
         app.dependency_overrides[get_current_user] = override_auth
         app.dependency_overrides[get_session] = make_db_override(mock_session)
@@ -306,9 +305,7 @@ class TestGetEmployeeDetail:
         emp.request_histories = [make_request_history()]
 
         mock_session = make_session(scalar_return=make_admin_employee())
-        mock_session.execute = AsyncMock(
-            return_value=make_scalar_one_result(emp)
-        )
+        mock_session.execute = AsyncMock(return_value=make_scalar_one_result(emp))
 
         app.dependency_overrides[get_current_user] = override_auth
         app.dependency_overrides[get_session] = make_db_override(mock_session)
@@ -327,9 +324,7 @@ class TestGetEmployeeDetail:
         emp.request_histories = []
 
         mock_session = make_session(scalar_return=make_admin_employee())
-        mock_session.execute = AsyncMock(
-            return_value=make_scalar_one_result(emp)
-        )
+        mock_session.execute = AsyncMock(return_value=make_scalar_one_result(emp))
 
         app.dependency_overrides[get_current_user] = override_auth
         app.dependency_overrides[get_session] = make_db_override(mock_session)
@@ -346,9 +341,7 @@ class TestGetEmployeeDetail:
         emp.request_histories = []
 
         mock_session = make_session(scalar_return=make_admin_employee())
-        mock_session.execute = AsyncMock(
-            return_value=make_scalar_one_result(emp)
-        )
+        mock_session.execute = AsyncMock(return_value=make_scalar_one_result(emp))
 
         app.dependency_overrides[get_current_user] = override_auth
         app.dependency_overrides[get_session] = make_db_override(mock_session)
@@ -361,9 +354,7 @@ class TestGetEmployeeDetail:
 
     def test_unknown_id_returns_404(self) -> None:
         mock_session = make_session(scalar_return=make_admin_employee())
-        mock_session.execute = AsyncMock(
-            return_value=make_scalar_one_result(None)
-        )
+        mock_session.execute = AsyncMock(return_value=make_scalar_one_result(None))
 
         app.dependency_overrides[get_current_user] = override_auth
         app.dependency_overrides[get_session] = make_db_override(mock_session)

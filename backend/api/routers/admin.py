@@ -33,17 +33,18 @@ from db.session import get_session
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
+
 @router.get(
     "/employees",
     response_model=PaginatedEmployees,
-    summary="List all employees (paginated, searchable)"
+    summary="List all employees (paginated, searchable)",
 )
 async def list_employees(
     page: int = 1,
     size: int = 10,
     q: str | None = None,
-    db: AsyncSession = Depends(get_session), # noqa: B008
-    _admin: Employee = Depends(require_admin), # noqa: B008
+    db: AsyncSession = Depends(get_session),  # noqa: B008
+    _admin: Employee = Depends(require_admin),  # noqa: B008
 ) -> PaginatedEmployees:
     if size < 1:
         size = 1
@@ -69,10 +70,7 @@ async def list_employees(
     rows = (
         (
             await db.execute(
-                base_query
-                .order_by(Employee.name)
-                .offset((page - 1) * size)
-                .limit(size)
+                base_query.order_by(Employee.name).offset((page - 1) * size).limit(size)
             )
         )
         .scalars()
@@ -98,6 +96,7 @@ async def list_employees(
         pages=ceil(total / size) if total else 0,
     )
 
+
 @router.get(
     "/employees/{employee_id}",
     response_model=EmployeeDetail,
@@ -105,8 +104,8 @@ async def list_employees(
 )
 async def get_employee_detail(
     employee_id: int,
-    db: AsyncSession = Depends(get_session), # noqa: B008
-    _admin: Employee = Depends(require_admin), # noqa: B008
+    db: AsyncSession = Depends(get_session),  # noqa: B008
+    _admin: Employee = Depends(require_admin),  # noqa: B008
 ) -> EmployeeDetail:
     emp = (
         await db.execute(
@@ -156,6 +155,7 @@ async def get_employee_detail(
             )
         ],
     )
+
 
 @router.patch(
     "/requests/{request_id}",
