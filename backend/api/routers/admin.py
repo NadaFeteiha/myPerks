@@ -10,19 +10,85 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime
+from math import ceil
 from typing import cast
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import select, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from api.auth import require_admin
-from api.schemas.admin import ApproveRejectBody, ApproveRejectResponse, BalanceSnapshot
+from api.schemas.admin import ApproveRejectBody, ApproveRejectResponse, BalanceSnapshot, EmployeeDetail, EmployeeListItem, PaginatedEmployees, RequestHistorySnapshot
 from db.models import Employee, RequestHistory, VacationBalance
 from db.session import get_session
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
+@router.get(
+    "/employees",
+    response_model=PaginatedEmployees,
+    summary="List all employees (paginated, searchable)"
+)
+async def list_employees(
+    page: int = 1,
+    size: int = 10,
+    q: str | None = None,
+    db: AsyncSession = Depends(get_session), # noqa: B008
+    _admin: Employee = Depends(require_admin), # noqa: B008
+) -> PaginatedEmployees:
+    if size < 1:
+        size = 1
+    if size > 100:
+        size = 100
+    if page < 1:
+        page = 1
+
+    base_query = select(Employee)
+    count_query = select(func.count()).select_from(Employee)
+
+    if q:
+        pattern = f"%{q}%"
+        filter_clause = or_(
+            Employee.name.ilike(pattern),
+            Employee.email.ilike(pattern),
+        )
+        base_query = base_query.where(filter_clause)
+        count_query = count_query.where(filter_clause)
+
+    total: int = cast(int, await db.scalar(count_query)) or 0
+
+    rows = (
+        (
+            await db.execute(
+                base_query
+                .order_by(Employee.name)
+                .offset((page - 1) * size)
+                .limit(size)
+            )
+        )
+        .scalars()
+        .all()
+    )
+
+    return PaginatedEmployees(
+        items=[
+            EmployeeListItem(
+                id=cast(int, e.id),
+                name=cast(str, e.name),
+                email=cast(str, e.email),
+                department=cast(str, e.department),
+                role=cast(str, e.role),
+                joined_date=e.joined_date,
+                linked=e.clerk_user_id is not None,
+            )
+            for e in rows
+        ],
+        total=total,
+        page=page,
+        size=size,
+        pages=ceil(total / size) if total else 0,
+    )
 
 @router.patch(
     "/requests/{request_id}",
