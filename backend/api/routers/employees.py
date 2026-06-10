@@ -26,6 +26,9 @@ class EmployeeResponse(BaseModel):
     name: str
     email: str
     department: str | None
+    role: str
+    joined_date: datetime.date
+    benefits_year_reset: datetime.date
 
 
 @router.get(
@@ -58,6 +61,9 @@ async def get_me(
         name=cast(str, employee.name),
         email=cast(str, employee.email),
         department=cast("str | None", employee.department),
+        role=employee.role,
+        joined_date=employee.joined_date,
+        benefits_year_reset=employee.benefits_year_reset,
     )
 
 
@@ -99,6 +105,9 @@ async def register_me(
                     name=cast(str, existing.name),
                     email=cast(str, existing.email),
                     department=cast("str | None", existing.department),
+                    role=existing.role,
+                    joined_date=existing.joined_date,
+                    benefits_year_reset=existing.benefits_year_reset,
                 )
 
         if existing is not None:
@@ -107,11 +116,15 @@ async def register_me(
                 detail="Employee already exists",
             )
 
+        today = datetime.date.today()
         employee = Employee(
             clerk_user_id=clerk_user_id,
             name=body.name,
             email=body.email,
             department=body.department,
+            joined_date=today,
+            # Benefits year resets each Jan 1 (T37 hero banner).
+            benefits_year_reset=datetime.date(today.year + 1, 1, 1),
         )
         session.add(employee)
         await session.flush()
@@ -152,4 +165,7 @@ async def register_me(
         name=cast(str, employee.name),
         email=cast(str, employee.email),
         department=cast("str | None", employee.department),
+        role=employee.role,
+        joined_date=employee.joined_date,
+        benefits_year_reset=employee.benefits_year_reset,
     )
