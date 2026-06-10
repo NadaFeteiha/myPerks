@@ -3,11 +3,12 @@ myPerks — ORM Models
 backend/db/models.py
 """
 
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     Column,
+    Date,
     DateTime,
     Enum,
     Float,
@@ -24,14 +25,41 @@ class Base(DeclarativeBase):
     pass
 
 
+# Shared Postgres ENUM used by BOTH employees.department and documents.department.
+# Defined once as a single object so SQLAlchemy emits one CREATE TYPE and both
+# columns reference the same type. The Alembic migration (T21) owns creation in
+# the live DB; this object is the source of truth for the ORM and tests.
+department_enum = Enum(
+    "engineering",
+    "sales",
+    "marketing",
+    "hr",
+    "finance",
+    "operations",
+    "other",
+    name="department",
+)
+
+
 class Employee(Base):
     __tablename__ = "employees"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    clerk_user_id = Column(String(128), unique=True, nullable=False, index=True)
+    # Nullable: HR can pre-create an employee row (email + department) before that
+    # person ever signs in. On first Clerk login we link the row by email and set
+    # this (T25 pre-create / T27 link-by-email). Stays unique — Postgres treats
+    # NULLs as distinct, so multiple unlinked rows coexist.
+    clerk_user_id = Column(String(128), unique=True, nullable=True, index=True)
     name = Column(String(255), nullable=False)
     email = Column(String(255), unique=True, nullable=False, index=True)
-    department = Column(String(128), nullable=True)
+    role: Mapped[str] = mapped_column(
+        Enum("employee", "hr_admin", name="employee_role"),
+        nullable=False,
+        server_default="employee",
+    )
+    department: Mapped[str] = mapped_column(department_enum, nullable=False)
+    joined_date: Mapped[date] = mapped_column(Date, nullable=False)
+    benefits_year_reset: Mapped[date] = mapped_column(Date, nullable=False)
 
     vacation_balances = relationship(
         "VacationBalance", back_populates="employee", cascade="all, delete-orphan"
@@ -133,6 +161,9 @@ class Document(Base):
     uploaded_at = Column(
         DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC)
     )
+    # Every document belongs to exactly one department (no company-wide tier).
+    # Drives department-scoped RAG retrieval (T28). Reuses the shared enum.
+    department: Mapped[str] = mapped_column(department_enum, nullable=False)
 
     uploader = relationship("Employee", back_populates="documents")
     chunks = relationship(
