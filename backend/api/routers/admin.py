@@ -19,7 +19,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from api.auth import require_admin
-from api.schemas.admin import ApproveRejectBody, ApproveRejectResponse, BalanceSnapshot, EmployeeDetail, EmployeeListItem, PaginatedEmployees, RequestHistorySnapshot
+from api.schemas.admin import (
+    ApproveRejectBody,
+    ApproveRejectResponse,
+    BalanceSnapshot,
+    EmployeeDetail,
+    EmployeeListItem,
+    PaginatedEmployees,
+    RequestHistorySnapshot,
+)
 from db.models import Employee, RequestHistory, VacationBalance
 from db.session import get_session
 
@@ -88,6 +96,63 @@ async def list_employees(
         page=page,
         size=size,
         pages=ceil(total / size) if total else 0,
+    )
+
+@router.get(
+    "/employees/{employee_id}",
+    response_model=EmployeeDetail,
+    summary="Get a single employee with balances and request history",
+)
+async def get_employee_detail(
+    employee_id: int,
+    db: AsyncSession = Depends(get_session), # noqa: B008
+    _admin: Employee = Depends(require_admin), # noqa: B008
+) -> EmployeeDetail:
+    emp = (
+        await db.execute(
+            select(Employee)
+            .options(
+                selectinload(Employee.vacation_balances),
+                selectinload(Employee.request_histories),
+            )
+            .where(Employee.id == employee_id)
+        )
+    ).scalar_one_or_none()
+
+    if emp is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Employee not found",
+        )
+
+    return EmployeeDetail(
+        id=cast(int, emp.id),
+        name=cast(str, emp.name),
+        email=cast(str, emp.email),
+        department=cast(str, emp.department),
+        role=cast(str, emp.role),
+        joined_date=emp.joined_date,
+        benefits_year_reset=emp.benefits_year_reset,
+        linked=emp.clerk_user_id is not None,
+        balances=[
+            BalanceSnapshot(
+                leave_type=b.leave_type,
+                total_days=b.total_days,
+                used_days=b.used_days,
+                remaining_days=b.remaining_days,
+            )
+            for b in emp.vacation_balances
+        ],
+        request_history=[
+            RequestHistorySnapshot(
+                id=cast(int, r.id),
+                type=cast(str, r.type),
+                status=cast(str, r.status),
+                created_at=r.created_at,
+                body=cast(str | None, r.body),
+            )
+            for r in sorted(emp.request_histories, key=lambda r: r.created_at, reverse=True)
+        ],
     )
 
 @router.patch(
