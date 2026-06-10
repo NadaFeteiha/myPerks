@@ -14,7 +14,7 @@ from math import ceil
 from typing import cast
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select, func, or_
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -83,10 +83,10 @@ async def list_employees(
         items=[
             EmployeeListItem(
                 id=cast(int, e.id),
-                name=cast(str, e.name),
-                email=cast(str, e.email),
-                department=cast(str, e.department),
-                role=cast(str, e.role),
+                name=e.name,
+                email=e.email,
+                department=e.department,
+                role=e.role,
                 joined_date=e.joined_date,
                 linked=e.clerk_user_id is not None,
             )
@@ -127,10 +127,10 @@ async def get_employee_detail(
 
     return EmployeeDetail(
         id=cast(int, emp.id),
-        name=cast(str, emp.name),
-        email=cast(str, emp.email),
-        department=cast(str, emp.department),
-        role=cast(str, emp.role),
+        name=emp.name,
+        email=emp.email,
+        department=emp.department,
+        role=emp.role,
         joined_date=emp.joined_date,
         benefits_year_reset=emp.benefits_year_reset,
         linked=emp.clerk_user_id is not None,
@@ -151,7 +151,9 @@ async def get_employee_detail(
                 created_at=r.created_at,
                 body=cast(str | None, r.body),
             )
-            for r in sorted(emp.request_histories, key=lambda r: r.created_at, reverse=True)
+            for r in sorted(
+                emp.request_histories, key=lambda r: r.created_at, reverse=True
+            )
         ],
     )
 

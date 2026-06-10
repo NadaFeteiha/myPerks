@@ -174,7 +174,9 @@ class TestListEmployees:
             app.dependency_overrides.clear()
 
         item = response.json()["items"][0]
-        for field in ("id", "name", "email", "department", "role", "joined_date", "linked"):
+        for field in (
+            "id", "name", "email", "department", "role", "joined_date", "linked"
+        ):
             assert field in item, f"missing field: {field}"
 
     def test_linked_true_when_clerk_id_present(self) -> None:
