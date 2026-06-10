@@ -6,7 +6,11 @@ import httpx
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from db.models import Employee
+from db.session import get_session
 from settings import settings
 
 logger = logging.getLogger(__name__)
@@ -162,3 +166,34 @@ async def get_current_user_payload(
         _raise_401("Token missing subject claim")
 
     return payload
+
+
+async def require_admin(
+    clerk_user_id: str = Depends(get_current_user),  # noqa: B008
+    session: AsyncSession = Depends(get_session),  # noqa: B008
+) -> Employee:
+    """
+    FastAPI dependency — verifies the authenticated user is an HR admin.
+
+    Builds on get_current_user, then loads the Employee row and checks
+    role == "hr_admin". Returns the full Employee object so downstream
+    handlers don't need to re-query.
+
+    Usage:
+        @router.patch("/admin/...")
+        async def endpoint(admin: Employee = Depends(require_admin)):
+            ...
+
+    Raises:
+        HTTP 401 if the bearer token is missing/invalid (via get_current_user)
+        HTTP 403 if no Employee row matches, or the role is not "hr_admin"
+    """
+    employee = await session.scalar(
+        select(Employee).where(Employee.clerk_user_id == clerk_user_id)
+    )
+    if employee is None or employee.role != "hr_admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="HR admin access required",
+        )
+    return employee

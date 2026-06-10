@@ -1,7 +1,7 @@
 # backend/api/routers/admin.py
 """
 Single admin endpoint: approve or reject an employee HR request.
-No Clerk auth required — accessible directly for demo/testing.
+Behind require_admin — only HR admins may call this.
 Approving a leave request updates VacationBalance.used_days so the
 employee's dashboard balance reflects the change immediately.
 """
@@ -16,6 +16,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.auth import require_admin
 from api.schemas.admin import ApproveRejectBody, ApproveRejectResponse, BalanceSnapshot
 from db.models import Employee, RequestHistory, VacationBalance
 from db.session import get_session
@@ -32,6 +33,7 @@ async def approve_or_reject_request(
     request_id: int,
     body: ApproveRejectBody,
     db: AsyncSession = Depends(get_session),  # noqa: B008
+    _admin: Employee = Depends(require_admin),  # noqa: B008
 ) -> ApproveRejectResponse:
     req = (
         await db.execute(select(RequestHistory).where(RequestHistory.id == request_id))
