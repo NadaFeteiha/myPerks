@@ -56,9 +56,7 @@ class TestGetMe:
 
         app.dependency_overrides[get_current_user] = _fake_get_current_user
         try:
-            with patch(
-                "api.routers.employees.AsyncSessionLocal", return_value=session
-            ):
+            with patch("api.routers.employees.AsyncSessionLocal", return_value=session):
                 response = client.get("/employees/me", headers=AUTH_HEADER)
         finally:
             app.dependency_overrides.clear()
@@ -74,9 +72,7 @@ class TestGetMe:
 
         app.dependency_overrides[get_current_user] = _fake_get_current_user
         try:
-            with patch(
-                "api.routers.employees.AsyncSessionLocal", return_value=session
-            ):
+            with patch("api.routers.employees.AsyncSessionLocal", return_value=session):
                 response = client.get("/employees/me", headers=AUTH_HEADER)
         finally:
             app.dependency_overrides.clear()
@@ -103,9 +99,7 @@ class TestRegisterMe:
 
         app.dependency_overrides[get_current_user] = _fake_get_current_user
         try:
-            with patch(
-                "api.routers.employees.AsyncSessionLocal", return_value=session
-            ):
+            with patch("api.routers.employees.AsyncSessionLocal", return_value=session):
                 response = client.post(
                     "/employees/me",
                     json={
@@ -123,9 +117,10 @@ class TestRegisterMe:
         today = datetime.date.today()
         assert data["role"] == "employee"
         assert data["joined_date"] == today.isoformat()
-        assert data["benefits_year_reset"] == datetime.date(
-            today.year + 1, 1, 1
-        ).isoformat()
+        assert (
+            data["benefits_year_reset"]
+            == datetime.date(today.year + 1, 1, 1).isoformat()
+        )
 
     def test_returns_409_when_employee_already_exists(self) -> None:
         existing = _make_employee()
@@ -133,9 +128,7 @@ class TestRegisterMe:
 
         app.dependency_overrides[get_current_user] = _fake_get_current_user
         try:
-            with patch(
-                "api.routers.employees.AsyncSessionLocal", return_value=session
-            ):
+            with patch("api.routers.employees.AsyncSessionLocal", return_value=session):
                 response = client.post(
                     "/employees/me",
                     json={
@@ -155,9 +148,7 @@ class TestRegisterMe:
 
         app.dependency_overrides[get_current_user] = _fake_get_current_user
         try:
-            with patch(
-                "api.routers.employees.AsyncSessionLocal", return_value=session
-            ):
+            with patch("api.routers.employees.AsyncSessionLocal", return_value=session):
                 response = client.post(
                     "/employees/me",
                     json={
