@@ -26,6 +26,7 @@ export interface OnboardResponse {
   email: null | string;
   id: number;
   name: null | string;
+  role: "employee" | "hr_admin";
 }
 
 export interface RequestHistoryItem {
