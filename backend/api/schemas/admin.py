@@ -5,6 +5,11 @@ from typing import Literal
 
 from pydantic import BaseModel
 
+DEPARTMENT_VALUES = Literal[
+    "engineering", "sales", "marketing", "hr", "finance", "operations", "other"
+]
+ROLE_VALUES = Literal["employee", "hr_admin"]
+
 
 class ApproveRejectBody(BaseModel):
     status: Literal["approved", "rejected"]
@@ -65,3 +70,56 @@ class EmployeeDetail(BaseModel):
     linked: bool
     balances: list[BalanceSnapshot]  # reuses existing schema
     request_history: list[RequestHistorySnapshot]
+
+
+class PreCreateEmployeeBody(BaseModel):
+    name: str
+    email: str
+    department: DEPARTMENT_VALUES
+    joined_date: date
+    benefits_year_reset: date
+
+
+class PreCreateEmployeeResponse(BaseModel):
+    id: int
+    name: str
+    email: str
+    department: str
+    role: str
+    joined_date: date
+    benefits_year_reset: date
+    linked: bool  # always False on pre-create
+
+
+class PatchEmployeeBody(BaseModel):
+    department: DEPARTMENT_VALUES | None = None
+    role: ROLE_VALUES | None = None
+
+
+class PatchEmployeeResponse(BaseModel):
+    id: int
+    name: str
+    email: str
+    department: str
+    role: str
+    joined_date: date
+    benefits_year_reset: date
+    linked: bool
+
+
+class RequestListItem(BaseModel):
+    id: int
+    employee_id: int
+    employee_name: str
+    type: str
+    status: str
+    created_at: datetime
+    body: str | None
+
+
+class PaginatedRequests(BaseModel):
+    items: list[RequestListItem]
+    total: int
+    page: int
+    size: int
+    pages: int
