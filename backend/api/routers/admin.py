@@ -26,11 +26,13 @@ from api.schemas.admin import (
     EmployeeDetail,
     EmployeeListItem,
     PaginatedEmployees,
+    PaginatedRequests,
     PatchEmployeeBody,
     PatchEmployeeResponse,
     PreCreateEmployeeBody,
     PreCreateEmployeeResponse,
     RequestHistorySnapshot,
+    RequestListItem,
 )
 from db.models import Employee, RequestHistory, VacationBalance
 from db.session import get_session
@@ -246,6 +248,75 @@ async def patch_employee(
         joined_date=emp.joined_date,
         benefits_year_reset=emp.benefits_year_reset,
         linked=emp.clerk_user_id is not None,
+    )
+
+
+@router.get(
+    "/requests",
+    response_model=PaginatedRequests,
+    summary="List all requests across employees (filterable, paginated, newest first)",
+)
+async def list_requests(
+    page: int = 1,
+    size: int = 10,
+    status_filter: str | None = "pending",
+    employee_id: int | None = None,
+    db: AsyncSession = Depends(get_session),  # noqa: B008
+    _admin: Employee = Depends(require_admin),  # noqa: B008
+) -> PaginatedRequests:
+    if size < 1:
+        size = 1
+    if size > 100:
+        size = 100
+    if page < 1:
+        page = 1
+
+    base_query = (
+        select(RequestHistory, Employee.name.label("employee_name"))
+        .join(Employee, Employee.id == RequestHistory.employee_id)
+    )
+    count_query = (
+        select(func.count())
+        .select_from(RequestHistory)
+        .join(Employee, Employee.id == RequestHistory.employee_id)
+    )
+
+    if status_filter is not None and status_filter != "":
+        base_query = base_query.where(RequestHistory.status == status_filter)
+        count_query = count_query.where(RequestHistory.status == status_filter)
+
+    if employee_id is not None:
+        base_query = base_query.where(RequestHistory.employee_id == employee_id)
+        count_query = count_query.where(RequestHistory.employee_id == employee_id)
+
+    total: int = cast(int, await db.scalar(count_query)) or 0
+
+    rows = (
+        await db.execute(
+            base_query
+            .order_by(RequestHistory.created_at.desc())
+            .offset((page - 1) * size)
+            .limit(size)
+        )
+    ).all()
+
+    return PaginatedRequests(
+        items=[
+            RequestListItem(
+                id=cast(int, r.RequestHistory.id),
+                employee_id=cast(int, r.RequestHistory.employee_id),
+                employee_name=cast(str, r.employee_name),
+                type=cast(str, r.RequestHistory.type),
+                status=cast(str, r.RequestHistory.status),
+                created_at=r.RequestHistory.created_at,
+                body=cast(str | None, r.RequestHistory.body),
+            )
+            for r in rows
+        ],
+        total=total,
+        page=page,
+        size=size,
+        pages=ceil(total / size) if total else 0,
     )
 
 

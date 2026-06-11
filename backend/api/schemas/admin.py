@@ -105,3 +105,21 @@ class PatchEmployeeResponse(BaseModel):
     joined_date: date
     benefits_year_reset: date
     linked: bool
+
+
+class RequestListItem(BaseModel):
+    id: int
+    employee_id: int
+    employee_name: str
+    type: str
+    status: str
+    created_at: datetime
+    body: str | None
+
+
+class PaginatedRequests(BaseModel):
+    items: list[RequestListItem]
+    total: int
+    page: int
+    size: int
+    pages: int

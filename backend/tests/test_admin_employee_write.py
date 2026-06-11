@@ -116,7 +116,6 @@ VALID_PRE_CREATE_BODY = {
 
 class TestPreCreateEmployee:
     def test_hr_admin_creates_employee_201(self) -> None:
-        emp = make_employee()
         mock_session = make_session(scalar_return=make_admin_employee())
         # execute() for duplicate-email check returns None (no existing row)
         mock_session.execute = AsyncMock(return_value=make_scalar_one_result(None))
