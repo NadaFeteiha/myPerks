@@ -6,18 +6,23 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { useApi } from "@/lib/api.client";
 
 type AuthContextType = {
+  isAdmin: boolean;
   isAuthenticated: boolean;
   user: null | User;
 };
+
+type Role = "employee" | "hr_admin";
 
 type User = {
   department: string;
   email: string;
   initials: string;
   name: string;
+  role: Role;
 };
 
 const AuthContext = createContext<AuthContextType>({
+  isAdmin: false,
   isAuthenticated: false,
   user: null,
 });
@@ -42,6 +47,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           email: data.email ?? "",
           initials: getInitials(name),
           name,
+          role: data.role,
         });
       })
       .catch((err: unknown) => {
@@ -50,7 +56,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [isSignedIn, api]);
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated: !!isSignedIn, user }}>
+    <AuthContext.Provider
+      value={{
+        isAdmin: user?.role === "hr_admin",
+        isAuthenticated: !!isSignedIn,
+        user,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
