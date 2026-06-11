@@ -6,12 +6,23 @@ from typing import cast
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
 from api.auth import get_current_user
 from db.models import Employee, VacationBalance
 from db.session import AsyncSessionLocal
 
 router = APIRouter(prefix="/employees", tags=["employees"])
+
+DEPARTMENTS = {
+    "engineering",
+    "sales",
+    "marketing",
+    "hr",
+    "finance",
+    "operations",
+    "other",
+}
 
 
 class RegisterRequest(BaseModel):
@@ -116,18 +127,35 @@ async def register_me(
                 detail="Employee already exists",
             )
 
+        # department is optional in the onboarding form, but the column is a
+        # NOT NULL Postgres enum — fall back to "other" rather than crashing.
+        department = (body.department or "other").strip().lower()
+        if department not in DEPARTMENTS:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Invalid department: {body.department!r}",
+            )
+
         today = datetime.date.today()
         employee = Employee(
             clerk_user_id=clerk_user_id,
             name=body.name,
             email=body.email,
-            department=body.department,
+            department=department,
             joined_date=today,
             # Benefits year resets each Jan 1 (T37 hero banner).
             benefits_year_reset=datetime.date(today.year + 1, 1, 1),
         )
         session.add(employee)
-        await session.flush()
+
+        try:
+            await session.flush()
+        except IntegrityError as exc:
+            await session.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Employee already exists",
+            ) from exc
 
         current_year = datetime.datetime.now().year
         eid = employee.id
