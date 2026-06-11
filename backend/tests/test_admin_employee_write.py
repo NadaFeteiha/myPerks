@@ -151,8 +151,14 @@ class TestPreCreateEmployee:
         assert response.status_code == 201
         data = response.json()
         for field in (
-            "id", "name", "email", "department", "role",
-            "joined_date", "benefits_year_reset", "linked",
+            "id",
+            "name",
+            "email",
+            "department",
+            "role",
+            "joined_date",
+            "benefits_year_reset",
+            "linked",
         ):
             assert field in data, f"missing field: {field}"
 
@@ -279,8 +285,14 @@ class TestPatchEmployee:
         assert response.status_code == 200
         data = response.json()
         for field in (
-            "id", "name", "email", "department", "role",
-            "joined_date", "benefits_year_reset", "linked",
+            "id",
+            "name",
+            "email",
+            "department",
+            "role",
+            "joined_date",
+            "benefits_year_reset",
+            "linked",
         ):
             assert field in data, f"missing field: {field}"
 
@@ -397,9 +409,7 @@ class TestPatchEmployee:
 
         app.dependency_overrides[get_session] = make_db_override(mock_session)
         try:
-            response = client.patch(
-                "/admin/employees/10", json={"department": "sales"}
-            )
+            response = client.patch("/admin/employees/10", json={"department": "sales"})
         finally:
             app.dependency_overrides.clear()
 

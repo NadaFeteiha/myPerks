@@ -271,9 +271,8 @@ async def list_requests(
     if page < 1:
         page = 1
 
-    base_query = (
-        select(RequestHistory, Employee.name.label("employee_name"))
-        .join(Employee, Employee.id == RequestHistory.employee_id)
+    base_query = select(RequestHistory, Employee.name.label("employee_name")).join(
+        Employee, Employee.id == RequestHistory.employee_id
     )
     count_query = (
         select(func.count())
@@ -293,8 +292,7 @@ async def list_requests(
 
     rows = (
         await db.execute(
-            base_query
-            .order_by(RequestHistory.created_at.desc())
+            base_query.order_by(RequestHistory.created_at.desc())
             .offset((page - 1) * size)
             .limit(size)
         )

@@ -110,9 +110,7 @@ class TestListRequests:
     def test_hr_admin_gets_200_with_correct_shape(self) -> None:
         mock_session = make_session(scalar_return=make_admin_employee())
         mock_session.scalar = AsyncMock(side_effect=[make_admin_employee(), 1])
-        mock_session.execute = AsyncMock(
-            return_value=make_all_result([make_row()])
-        )
+        mock_session.execute = AsyncMock(return_value=make_all_result([make_row()]))
 
         app.dependency_overrides[get_current_user] = override_auth
         app.dependency_overrides[get_session] = make_db_override(mock_session)
@@ -129,9 +127,7 @@ class TestListRequests:
     def test_item_shape(self) -> None:
         mock_session = make_session(scalar_return=make_admin_employee())
         mock_session.scalar = AsyncMock(side_effect=[make_admin_employee(), 1])
-        mock_session.execute = AsyncMock(
-            return_value=make_all_result([make_row()])
-        )
+        mock_session.execute = AsyncMock(return_value=make_all_result([make_row()]))
 
         app.dependency_overrides[get_current_user] = override_auth
         app.dependency_overrides[get_session] = make_db_override(mock_session)
@@ -142,7 +138,12 @@ class TestListRequests:
 
         item = response.json()["items"][0]
         for field in (
-            "id", "employee_id", "employee_name", "type", "status", "created_at"
+            "id",
+            "employee_id",
+            "employee_name",
+            "type",
+            "status",
+            "created_at",
         ):
             assert field in item, f"missing field: {field}"
 
