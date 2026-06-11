@@ -26,6 +26,10 @@ from api.schemas.admin import (
     EmployeeDetail,
     EmployeeListItem,
     PaginatedEmployees,
+    PatchEmployeeBody,
+    PatchEmployeeResponse,
+    PreCreateEmployeeBody,
+    PreCreateEmployeeResponse,
     RequestHistorySnapshot,
 )
 from db.models import Employee, RequestHistory, VacationBalance
@@ -154,6 +158,94 @@ async def get_employee_detail(
                 emp.request_histories, key=lambda r: r.created_at, reverse=True
             )
         ],
+    )
+
+
+@router.post(
+    "/employees",
+    response_model=PreCreateEmployeeResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Pre-create an employee row (no Clerk account yet)",
+)
+async def pre_create_employee(
+    body: PreCreateEmployeeBody,
+    db: AsyncSession = Depends(get_session),  # noqa: B008
+    _admin: Employee = Depends(require_admin),  # noqa: B008
+) -> PreCreateEmployeeResponse:
+    # Reject duplicate email
+    existing = (
+        await db.execute(select(Employee).where(Employee.email == body.email))
+    ).scalar_one_or_none()
+
+    if existing is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="An employee with this email already exists",
+        )
+
+    emp = Employee(
+        clerk_user_id=None,
+        name=body.name,
+        email=body.email,
+        department=body.department,
+        role="employee",
+        joined_date=body.joined_date,
+        benefits_year_reset=body.benefits_year_reset,
+    )
+    db.add(emp)
+    await db.commit()
+    await db.refresh(emp)
+
+    return PreCreateEmployeeResponse(
+        id=cast(int, emp.id),
+        name=emp.name,
+        email=emp.email,
+        department=emp.department,
+        role=emp.role,
+        joined_date=emp.joined_date,
+        benefits_year_reset=emp.benefits_year_reset,
+        linked=False,
+    )
+
+
+@router.patch(
+    "/employees/{employee_id}",
+    response_model=PatchEmployeeResponse,
+    summary="Update an employee's department or role",
+)
+async def patch_employee(
+    employee_id: int,
+    body: PatchEmployeeBody,
+    db: AsyncSession = Depends(get_session),  # noqa: B008
+    _admin: Employee = Depends(require_admin),  # noqa: B008
+) -> PatchEmployeeResponse:
+    emp = (
+        await db.execute(select(Employee).where(Employee.id == employee_id))
+    ).scalar_one_or_none()
+
+    if emp is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Employee not found",
+        )
+
+    if body.department is not None:
+        emp.department = body.department  # type: ignore[assignment]
+    if body.role is not None:
+        emp.role = body.role  # type: ignore[assignment]
+
+    await db.commit()
+    await db.refresh(emp)
+
+    return PatchEmployeeResponse(
+        id=cast(int, emp.id),
+        name=emp.name,
+        email=emp.email,
+        department=emp.department,
+        role=emp.role,
+        joined_date=emp.joined_date,
+        benefits_year_reset=emp.benefits_year_reset,
+        linked=emp.clerk_user_id is not None,
     )
 
 
