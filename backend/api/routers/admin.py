@@ -232,9 +232,9 @@ async def patch_employee(
         )
 
     if body.department is not None:
-        emp.department = body.department  # type: ignore[assignment]
+        emp.department = body.department
     if body.role is not None:
-        emp.role = body.role  # type: ignore[assignment]
+        emp.role = body.role
 
     await db.commit()
     await db.refresh(emp)
