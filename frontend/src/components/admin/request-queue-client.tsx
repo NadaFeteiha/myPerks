@@ -37,7 +37,10 @@ export function RequestQueueClient({
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<null | string>(null);
 
-  function openConfirm(item: AdminRequestListItem, action: "approved" | "rejected") {
+  function openConfirm(
+    item: AdminRequestListItem,
+    action: "approved" | "rejected",
+  ) {
     setError(null);
     setRejectionReason("");
     setConfirmTarget({ action, item });
@@ -132,7 +135,10 @@ export function RequestQueueClient({
           </thead>
           <tbody className="divide-y divide-border">
             {items.map((item) => (
-              <tr className="border-b border-border last:border-0" key={item.id}>
+              <tr
+                className="border-b border-border last:border-0"
+                key={item.id}
+              >
                 <td className="py-3 pl-4 pr-4 text-sm font-medium">
                   {item.employee_name}
                 </td>
@@ -177,14 +183,17 @@ export function RequestQueueClient({
       </div>
 
       <ConfirmDialog
-        confirmLabel={confirmTarget?.action === "approved" ? "Approve" : "Reject"}
+        confirmLabel={
+          confirmTarget?.action === "approved" ? "Approve" : "Reject"
+        }
         description={
           confirmTarget && (
             <div className="space-y-3">
               <p>
                 {confirmTarget.action === "approved" ? "Approve" : "Reject"} the{" "}
-                {formatRequestType(confirmTarget.item.type).toLowerCase()} request
-                from <strong>{confirmTarget.item.employee_name}</strong>?
+                {formatRequestType(confirmTarget.item.type).toLowerCase()}{" "}
+                request from <strong>{confirmTarget.item.employee_name}</strong>
+                ?
               </p>
               {confirmTarget.action === "rejected" && (
                 <textarea
@@ -207,7 +216,9 @@ export function RequestQueueClient({
             ? "Approve request?"
             : "Reject request?"
         }
-        variant={confirmTarget?.action === "rejected" ? "destructive" : "default"}
+        variant={
+          confirmTarget?.action === "rejected" ? "destructive" : "default"
+        }
       />
     </>
   );

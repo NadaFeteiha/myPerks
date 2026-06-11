@@ -63,8 +63,8 @@ export default async function AdminEmployeeDetailPage({
             {employee.role === "hr_admin" ? "HR Admin" : "Employee"}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Joined {formatIsoDate(employee.joined_date)} · Benefits year
-            resets {formatIsoDate(employee.benefits_year_reset)} ·{" "}
+            Joined {formatIsoDate(employee.joined_date)} · Benefits year resets{" "}
+            {formatIsoDate(employee.benefits_year_reset)} ·{" "}
             {employee.linked ? "Linked to Clerk" : "Not yet linked"}
           </p>
 
@@ -123,7 +123,10 @@ export default async function AdminEmployeeDetailPage({
                 </thead>
                 <tbody className="divide-y divide-border">
                   {employee.request_history.map((item) => (
-                    <tr className="border-b border-border last:border-0" key={item.id}>
+                    <tr
+                      className="border-b border-border last:border-0"
+                      key={item.id}
+                    >
                       <td className="py-3 pl-4 pr-4 text-center text-sm font-medium">
                         {formatRequestType(item.type)}
                       </td>
