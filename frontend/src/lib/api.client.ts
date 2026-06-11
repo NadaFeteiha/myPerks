@@ -24,7 +24,7 @@ export interface OnboardResponse {
   id: number;
   joined_date: string;
   name: null | string;
-  role: string;
+  role: "employee" | "hr_admin";
 }
 
 export interface RequestHistoryItem {
