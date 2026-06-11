@@ -5,6 +5,20 @@ import { useMemo } from "react";
 
 const BACKEND_PREFIX = "/api/backend";
 
+export interface ApproveRejectBody {
+  rejection_reason?: string;
+  status: "approved" | "rejected";
+}
+
+export interface ApproveRejectResponse {
+  employee_email: string;
+  employee_name: string;
+  new_status: string;
+  rejection_reason: null | string;
+  request_id: number;
+  request_type: string;
+}
+
 export interface CreateRequestPayload {
   body: Record<string, unknown>;
   type: string;
@@ -75,7 +89,32 @@ export function useApi() {
       return response.json() as Promise<T>;
     }
 
+    async function apiPatch<T>(path: string, body: unknown): Promise<T> {
+      const token = await getToken();
+      const response = await fetch(`${BACKEND_PREFIX}${path}`, {
+        body: JSON.stringify(body),
+        cache: "no-store",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        method: "PATCH",
+      });
+      if (!response.ok) {
+        const detail = await response
+          .json()
+          .then((j: { detail?: string }) => j.detail)
+          .catch(() => undefined);
+        throw new Error(
+          `API error: ${response.status}${detail ? ` – ${detail}` : ` ${response.statusText}`}`,
+        );
+      }
+      return response.json() as Promise<T>;
+    }
+
     return {
+      approveOrRejectRequest: (requestId: number, body: ApproveRejectBody) =>
+        apiPatch<ApproveRejectResponse>(`/admin/requests/${requestId}`, body),
       createRequest: (payload: CreateRequestPayload) =>
         apiPost<RequestHistoryItem>("/me/requests", payload),
       getMe: () => apiGet<OnboardResponse>("/employees/me"),

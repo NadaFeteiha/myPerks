@@ -1,57 +1,17 @@
+import { Pagination } from "@/components/shared/pagination";
+import { StatusBadge } from "@/components/shared/status-badge";
 import { api, type RequestHistoryItem } from "@/lib/api.server";
-import { formatIsoDate } from "@/lib/format";
+import {
+  formatRequestType,
+  getRequestDate,
+  getRequestDescription,
+} from "@/lib/format";
 
 export const metadata = {
   title: "Request History — MyPerks",
 };
 
 const PAGE_SIZE = 10;
-
-function formatType(type: string): string {
-  if (type.toLowerCase() === "pto") return "PTO";
-  return type.charAt(0).toUpperCase() + type.slice(1);
-}
-
-/**
- * For leave requests, return "Jun 6 – Jun 12, 2026" using start/end from body.
- * For reimbursements (no start_date), fall back to the submission date.
- */
-function getRequestDate(item: RequestHistoryItem): string {
-  if (item.body) {
-    try {
-      const parsed = JSON.parse(item.body) as Record<string, unknown>;
-      if (typeof parsed.start_date === "string") {
-        const start = formatIsoDate(parsed.start_date);
-        if (typeof parsed.end_date === "string") {
-          const end = formatIsoDate(parsed.end_date);
-          return start === end ? start : `${start} – ${end}`;
-        }
-        return start;
-      }
-    } catch {
-      // fall through
-    }
-  }
-  return formatIsoDate(item.created_at);
-}
-
-function getShortDescription(body: null | string): string {
-  if (!body) return "—";
-  try {
-    const parsed = JSON.parse(body) as Record<string, unknown>;
-    const text = parsed.reason ?? parsed.description;
-    return typeof text === "string" ? text : "—";
-  } catch {
-    return "—";
-  }
-}
-
-const STATUS_STYLES = new Map([
-  ["approved", "bg-green-100 text-green-800"],
-  ["cancelled", "bg-muted text-muted-foreground"],
-  ["pending", "bg-yellow-100 text-yellow-800"],
-  ["rejected", "bg-red-100 text-red-800"],
-]);
 
 // ---------------------------------------------------------------------------
 // Page
@@ -129,7 +89,12 @@ export default async function RequestsPage({
             </table>
           </div>
 
-          <Pagination page={page} pageSize={PAGE_SIZE} total={data.total} />
+          <Pagination
+            makeHref={(p) => `?page=${p}`}
+            page={page}
+            pageSize={PAGE_SIZE}
+            total={data.total}
+          />
         </>
       )}
     </div>
@@ -151,55 +116,13 @@ function EmptyState() {
 }
 
 // ---------------------------------------------------------------------------
-// Pagination
-// ---------------------------------------------------------------------------
-function Pagination({
-  page,
-  pageSize,
-  total,
-}: {
-  page: number;
-  pageSize: number;
-  total: number;
-}) {
-  const totalPages = Math.ceil(total / pageSize);
-  if (totalPages <= 1) return null;
-
-  return (
-    <div className="mt-4 flex items-center justify-between text-sm">
-      <p className="text-muted-foreground">
-        Page {page} of {totalPages}
-      </p>
-      <div className="flex gap-2">
-        {page > 1 && (
-          <a
-            className="rounded-md border border-border px-3 py-1.5 text-sm font-medium hover:bg-muted"
-            href={`?page=${page - 1}`}
-          >
-            Previous
-          </a>
-        )}
-        {page < totalPages && (
-          <a
-            className="rounded-md border border-border px-3 py-1.5 text-sm font-medium hover:bg-muted"
-            href={`?page=${page + 1}`}
-          >
-            Next
-          </a>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
 // Table row
 // ---------------------------------------------------------------------------
 function RequestRow({ item }: { item: RequestHistoryItem }) {
   return (
     <tr className="border-b border-border last:border-0">
       <td className="py-3 pr-4 text-sm text-center font-medium">
-        {formatType(item.type)}
+        {formatRequestType(item.type)}
       </td>
       <td className="py-3 pr-4 text-center">
         <StatusBadge status={item.status} />
@@ -208,22 +131,8 @@ function RequestRow({ item }: { item: RequestHistoryItem }) {
         {getRequestDate(item)}
       </td>
       <td className="py-3 text-sm text-center text-muted-foreground">
-        {getShortDescription(item.body)}
+        {getRequestDescription(item.body)}
       </td>
     </tr>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Status badge
-// ---------------------------------------------------------------------------
-function StatusBadge({ status }: { status: string }) {
-  const classes = STATUS_STYLES.get(status) ?? "bg-muted text-muted-foreground";
-  return (
-    <span
-      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize ${classes}`}
-    >
-      {status}
-    </span>
   );
 }
