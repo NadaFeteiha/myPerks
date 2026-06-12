@@ -5,6 +5,25 @@ import { useMemo } from "react";
 
 const BACKEND_PREFIX = "/api/backend";
 
+export interface AdminBalanceSnapshot {
+  leave_type: string;
+  remaining_days: number;
+  total_days: number;
+  used_days: number;
+}
+
+export interface AdminEmployeeDetail {
+  balances: AdminBalanceSnapshot[];
+  benefits_year_reset: string;
+  department: string;
+  email: string;
+  id: number;
+  joined_date: string;
+  linked: boolean;
+  name: string;
+  role: string;
+}
+
 export interface ApproveRejectBody {
   rejection_reason?: string;
   status: "approved" | "rejected";
@@ -117,6 +136,8 @@ export function useApi() {
         apiPatch<ApproveRejectResponse>(`/admin/requests/${requestId}`, body),
       createRequest: (payload: CreateRequestPayload) =>
         apiPost<RequestHistoryItem>("/me/requests", payload),
+      getAdminEmployeeDetail: (id: number) =>
+        apiGet<AdminEmployeeDetail>(`/admin/employees/${id}`),
       getMe: () => apiGet<OnboardResponse>("/employees/me"),
       onboard: (body: OnboardRequest) =>
         apiPost<OnboardResponse>("/employees/me", body),

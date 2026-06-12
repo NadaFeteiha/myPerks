@@ -5,6 +5,7 @@ import { useState } from "react";
 
 import type { AdminRequestListItem } from "@/lib/api.server";
 
+import { RequestDetailDialog } from "@/components/admin/request-detail-dialog";
 import { ConfirmDialog } from "@/components/history/confirm-dialog";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { useApi } from "@/lib/api.client";
@@ -30,6 +31,9 @@ export function RequestQueueClient({
   const router = useRouter();
 
   const [items, setItems] = useState(initialItems);
+  const [detailItem, setDetailItem] = useState<AdminRequestListItem | null>(
+    null,
+  );
   const [confirmTarget, setConfirmTarget] = useState<ConfirmTarget | null>(
     null,
   );
@@ -140,7 +144,13 @@ export function RequestQueueClient({
                 key={item.id}
               >
                 <td className="py-3 pl-4 pr-4 text-sm font-medium">
-                  {item.employee_name}
+                  <button
+                    className="hover:underline"
+                    onClick={() => setDetailItem(item)}
+                    type="button"
+                  >
+                    {item.employee_name}
+                  </button>
                 </td>
                 <td className="py-3 pr-4 text-center text-sm">
                   {formatRequestType(item.type)}
@@ -219,6 +229,21 @@ export function RequestQueueClient({
         variant={
           confirmTarget?.action === "rejected" ? "destructive" : "default"
         }
+      />
+
+      <RequestDetailDialog
+        item={detailItem}
+        onApprove={() => {
+          if (!detailItem) return;
+          openConfirm(detailItem, "approved");
+          setDetailItem(null);
+        }}
+        onClose={() => setDetailItem(null)}
+        onReject={() => {
+          if (!detailItem) return;
+          openConfirm(detailItem, "rejected");
+          setDetailItem(null);
+        }}
       />
     </>
   );
