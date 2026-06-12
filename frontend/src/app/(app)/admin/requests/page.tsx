@@ -13,7 +13,7 @@ const STATUS_TABS = [
   { label: "Pending", value: "pending" },
   { label: "Approved", value: "approved" },
   { label: "Rejected", value: "rejected" },
-  { label: "All", value: "" },
+  { label: "All", value: "all" },
 ];
 
 export default async function AdminRequestsPage({
@@ -29,7 +29,11 @@ export default async function AdminRequestsPage({
   let fetchError: null | string = null;
 
   try {
-    data = await api.getAdminRequests(page, PAGE_SIZE, statusFilter);
+    data = await api.getAdminRequests(
+      page,
+      PAGE_SIZE,
+      statusFilter === "all" ? "" : statusFilter,
+    );
   } catch (error: unknown) {
     console.error("[MyPerks] GET /admin/requests failed:", error);
     fetchError =
@@ -55,8 +59,8 @@ export default async function AdminRequestsPage({
                 ? "bg-brand-purple-600 text-white"
                 : "bg-muted text-muted-foreground hover:bg-muted/70",
             )}
-            href={tab.value ? `?status=${tab.value}` : "?status="}
-            key={tab.value || "all"}
+            href={`?status=${tab.value}`}
+            key={tab.value}
           >
             {tab.label}
           </a>
