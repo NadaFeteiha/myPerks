@@ -8,7 +8,6 @@ import {
   LayoutDashboard,
   MessageCircle,
   Shield,
-  Upload,
   Users,
 } from "lucide-react";
 import Link from "next/link";
@@ -27,12 +26,10 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
   { href: "/assistant", icon: MessageCircle, label: "AI Assistant" },
   { href: "/history", icon: History, label: "History" },
-  { href: "/dashboard/upload", icon: Upload, label: "Documents" },
   { href: "/requests", icon: ClipboardList, label: "My Requests" },
 ];
 
-// HR-only. Pages land in T32 (/admin), T33 (/admin/employees),
-// T36 (/admin/requests), T30 (/admin/documents) — links may 404 until then.
+// HR-only.
 const ADMIN_NAV_ITEMS: NavItem[] = [
   { href: "/admin", icon: Shield, label: "HR Dashboard" },
   { href: "/admin/employees", icon: Users, label: "Employees" },
@@ -44,22 +41,16 @@ export function LeftNav() {
   const pathname = usePathname();
   const { isAdmin, user } = useAuth();
 
+  // HR admins only see the HR section — the employee-facing dashboard,
+  // assistant, history, and requests pages are hidden (and redirect away
+  // if visited directly, see lib/auth-guards.ts).
+  const items = isAdmin ? ADMIN_NAV_ITEMS : NAV_ITEMS;
+
   return (
     <nav className="flex w-[200px] shrink-0 flex-col gap-1 overflow-y-auto border-r border-border bg-surface-2 px-3 py-4">
-      {NAV_ITEMS.map((item) => (
+      {items.map((item) => (
         <NavLink item={item} key={item.href} pathname={pathname} />
       ))}
-
-      {isAdmin && (
-        <>
-          <p className="mt-3 px-2.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-            HR
-          </p>
-          {ADMIN_NAV_ITEMS.map((item) => (
-            <NavLink item={item} key={item.href} pathname={pathname} />
-          ))}
-        </>
-      )}
 
       <div className="mt-auto border-t border-border pt-3">
         <Link
