@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from collections.abc import AsyncGenerator
 from datetime import UTC, datetime
 from typing import cast
@@ -17,6 +18,8 @@ from db.models import Conversation, Employee, Message
 from db.session import AsyncSessionLocal
 
 router = APIRouter(prefix="/chat", tags=["chat"])
+
+logger = logging.getLogger(__name__)
 
 
 # ── Dependency ─────────────────────────────────────────────────────────────────
@@ -95,13 +98,22 @@ async def chat(
         conv_event = json.dumps({"type": "conversation_id", "data": conversation_id})
         yield f"data: {conv_event}\n\n"
 
-        async for item in run_agent(employee_id, body.question, history):
-            if isinstance(item, str):
-                collected.append(item)
-                yield f"data: {json.dumps({'type': 'text', 'data': item})}\n\n"
-            elif isinstance(item, dict):
-                # Special events (e.g. request_confirmation) already carry type+data
-                yield f"data: {json.dumps(item)}\n\n"
+        try:
+            async for item in run_agent(employee_id, body.question, history):
+                if isinstance(item, str):
+                    collected.append(item)
+                    yield f"data: {json.dumps({'type': 'text', 'data': item})}\n\n"
+                elif isinstance(item, dict):
+                    # Special events (e.g. request_confirmation) already carry type+data
+                    yield f"data: {json.dumps(item)}\n\n"
+        except Exception:
+            logger.exception("Chat agent failed")
+            error_message = (
+                "Sorry, something went wrong while generating a response. "
+                "Please try again."
+            )
+            error_event = json.dumps({"type": "error", "data": error_message})
+            yield f"data: {error_event}\n\n"
 
         yield "data: [DONE]\n\n"
 
