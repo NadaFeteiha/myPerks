@@ -5,13 +5,6 @@ import { useMemo } from "react";
 
 const BACKEND_PREFIX = "/api/backend";
 
-interface AdminBalanceSnapshot {
-  leave_type: string;
-  remaining_days: number;
-  total_days: number;
-  used_days: number;
-}
-
 export interface AdminEmployeeDetail {
   balances: AdminBalanceSnapshot[];
   benefits_year_reset: string;
@@ -64,6 +57,13 @@ export interface RequestHistoryItem {
   id: number;
   status: string;
   type: string;
+}
+
+interface AdminBalanceSnapshot {
+  leave_type: string;
+  remaining_days: number;
+  total_days: number;
+  used_days: number;
 }
 
 export function useApi() {
