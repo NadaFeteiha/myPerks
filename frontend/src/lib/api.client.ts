@@ -5,7 +5,7 @@ import { useMemo } from "react";
 
 const BACKEND_PREFIX = "/api/backend";
 
-export interface AdminBalanceSnapshot {
+interface AdminBalanceSnapshot {
   leave_type: string;
   remaining_days: number;
   total_days: number;
