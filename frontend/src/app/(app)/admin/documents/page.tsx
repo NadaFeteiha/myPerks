@@ -34,8 +34,28 @@ export default function AdminDocumentsPage() {
   }, [api]);
 
   useEffect(() => {
-    void fetchDocuments();
-  }, [fetchDocuments]);
+    let cancelled = false;
+
+    async function load() {
+      try {
+        setError(null);
+        const data = await api.getDocuments();
+        if (!cancelled) setDocuments(data.documents);
+      } catch (err) {
+        if (!cancelled)
+          setError(
+            err instanceof Error ? err.message : "Failed to load documents.",
+          );
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [api]);
 
   return (
     <div className="mx-auto max-w-2xl space-y-8 p-6">
