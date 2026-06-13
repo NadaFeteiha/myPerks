@@ -108,6 +108,7 @@ async def ingest_pdf(
     filename: str,
     uploaded_by: int | None,
     session: AsyncSession,
+    department: str,
 ) -> Document:
     """
     Ingest a PDF into the RAG store.
@@ -148,6 +149,7 @@ async def ingest_pdf(
         filename=filename,
         uploaded_by=uploaded_by,
         content_sha256=content_hash,
+        department=department,
     )
     document.chunks = [
         DocumentChunk(
