@@ -10,13 +10,6 @@ export interface CreateRequestPayload {
   type: string;
 }
 
-export interface DocumentItem {
-  department: string;
-  filename: string;
-  id: number;
-  uploaded_at: string;
-}
-
 export interface DocumentListResponse {
   documents: DocumentItem[];
 }
@@ -25,7 +18,6 @@ export interface OnboardRequest {
   email: string;
   name: string;
 }
-
 export interface OnboardResponse {
   clerk_user_id: string;
   department: null | string;
@@ -41,6 +33,12 @@ export interface RequestHistoryItem {
   id: number;
   status: string;
   type: string;
+}
+interface DocumentItem {
+  department: string;
+  filename: string;
+  id: number;
+  uploaded_at: string;
 }
 
 export function useApi() {
