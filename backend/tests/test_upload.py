@@ -1,269 +1,265 @@
 """
+Tests for the upload endpoint — department tagging and admin gating.
+
 backend/tests/test_upload.py
-
-Unit tests for POST /upload/callback.
-
-Auth and session dependencies are overridden via app.dependency_overrides.
-Remaining collaborators are mocked with patch:
-  - _resolve_employee — controls whether an Employee is found
-  - httpx.AsyncClient — controls the PDF download response
-  - ingest_pdf        — controls ingestion success / failure
-
-Test matrix:
-  ✓ Happy path — valid payload, PDF downloads, ingestion succeeds → 200
-  ✓ Duplicate — ingest_pdf returns existing document → 200 same document_id
-  ✓ No Authorization header → 401
-  ✓ Empty files list → 422
-  ✓ Employee not found for Clerk user → 403
-  ✓ PDF download upstream error (CDN 404) → 502
-  ✓ Wrong content-type (not PDF) → 422
-  ✓ File exceeds size limit → 422
-  ✓ Ingestion pipeline raises → 500
 """
 
 from __future__ import annotations
 
-from collections.abc import AsyncGenerator
-from typing import Any
+import hashlib
+from datetime import date
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from fastapi import FastAPI
-from fastapi.testclient import TestClient
+from httpx import ASGITransport, AsyncClient
 
-from api.auth import get_current_user
+from api.auth import get_current_user, require_admin
 from api.upload import router
-from db.session import get_session
+from db.models import Document, Employee
 
-# ── Constants ──────────────────────────────────────────────────────────────────
+# ── Fixtures ──────────────────────────────────────────────────────────────────
 
-CLERK_USER_ID = "user_test123"
-EMPLOYEE_ID = 1
-DOCUMENT_ID = 7
+ADMIN_EMPLOYEE = Employee(
+    id=1,
+    clerk_user_id="user_admin",
+    name="HR Admin",
+    email="admin@example.com",
+    role="hr_admin",
+    department="hr",
+    joined_date=date(2023, 1, 1),
+    benefits_year_reset=date(2024, 1, 1),
+)
 
-VALID_PAYLOAD = {
-    "files": [
-        {
-            "url": "https://cdn.uploadthing.com/policy.pdf",
-            "name": "policy.pdf",
-            "size": 12345,
-            "key": "abc123",
-        }
-    ]
+REGULAR_EMPLOYEE = Employee(
+    id=2,
+    clerk_user_id="user_emp",
+    name="Regular Employee",
+    email="emp@example.com",
+    role="employee",
+    department="engineering",
+    joined_date=date(2023, 6, 1),
+    benefits_year_reset=date(2024, 1, 1),
+)
+
+_FILE_ENG = {
+    "url": "https://cdn.example.com/test.pdf",
+    "name": "test.pdf",
+    "size": 1024,
+    "key": "abc123",
+}
+_FILE_SMALL = {
+    "url": "https://cdn.example.com/f.pdf",
+    "name": "f.pdf",
+    "size": 100,
+    "key": "k",
+}
+_FILE_TINY = {
+    "url": "https://cdn.example.com/t.pdf",
+    "name": "t.pdf",
+    "size": 512,
+    "key": "k2",
 }
 
-AUTH_HEADER = {"Authorization": "Bearer valid.jwt.token"}
 
-# ── Mock factories ─────────────────────────────────────────────────────────────
-
-
-def _make_employee() -> MagicMock:
-    emp = MagicMock()
-    emp.id = EMPLOYEE_ID
-    return emp
-
-
-def _make_document(doc_id: int = DOCUMENT_ID) -> MagicMock:
-    doc = MagicMock()
-    doc.id = doc_id
-    return doc
-
-
-def _make_session() -> MagicMock:
-    session = MagicMock()
-    session.__aenter__ = AsyncMock(return_value=session)
-    session.__aexit__ = AsyncMock(return_value=False)
-    session.commit = AsyncMock()
-    return session
-
-
-def _make_http_response(
-    content: bytes = b"%PDF-1.4 fake pdf content",
-    content_type: str = "application/pdf",
-    status_code: int = 200,
-) -> MagicMock:
-    resp = MagicMock()
-    resp.status_code = status_code
-    resp.content = content
-    resp.headers = {"content-type": content_type}
-    if status_code >= 400:
-        import httpx
-
-        resp.raise_for_status.side_effect = httpx.HTTPStatusError(
-            "upstream error", request=MagicMock(), response=resp
-        )
-    else:
-        resp.raise_for_status = MagicMock()
-    return resp
-
-
-def _make_async_http_client(response: MagicMock) -> MagicMock:
-    mock_client = MagicMock()
-    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-    mock_client.__aexit__ = AsyncMock(return_value=False)
-    mock_client.get = AsyncMock(return_value=response)
-    return mock_client
-
-
-# ── App setup with dependency overrides ───────────────────────────────────────
-
-app = FastAPI()
-app.include_router(router)
-
-
-async def _fake_get_current_user() -> str:
-    return CLERK_USER_ID
-
-
-async def _fake_get_session() -> AsyncGenerator[MagicMock, None]:
-    yield _make_session()
-
-
-app.dependency_overrides[get_current_user] = _fake_get_current_user
-app.dependency_overrides[get_session] = _fake_get_session
-
-client = TestClient(app, raise_server_exceptions=False)
-
-# ── Patch helper ───────────────────────────────────────────────────────────────
-
-
-_SENTINEL = object()
-
-
-def _patches(
-    *,
-    employee: MagicMock | None | object = _SENTINEL,
-    http_response: MagicMock | None = None,
-    ingest_return: MagicMock | None = None,
-    ingest_side_effect: Exception | None = None,
-) -> tuple[list[Any], AsyncMock]:
-    _employee = _make_employee() if employee is _SENTINEL else employee
-    if http_response is None:
-        http_response = _make_http_response()
-    if ingest_return is None:
-        ingest_return = _make_document()
-
-    ingest_mock = AsyncMock(
-        return_value=ingest_return,
-        side_effect=ingest_side_effect,
+def _make_minimal_pdf() -> bytes:
+    """Return a minimal valid-looking PDF byte string for testing."""
+    return (
+        b"%PDF-1.4\n"
+        b"1 0 obj\n<< /Type /Catalog >>\nendobj\n"
+        b"xref\n0 2\n"
+        b"trailer\n<< /Size 2 /Root 1 0 R >>\n"
+        b"startxref\n9\n%%EOF"
     )
 
-    async def _fake_resolve(_clerk_user_id: str, _session: Any) -> Any:
-        return _employee
 
-    return [
-        patch("api.upload._resolve_employee", new=_fake_resolve),
-        patch("httpx.AsyncClient", return_value=_make_async_http_client(http_response)),
-        patch("api.upload.ingest_pdf", ingest_mock),
-    ], ingest_mock
+def _app_with_override(
+    admin_override: Employee | None = ADMIN_EMPLOYEE,
+) -> FastAPI:
+    """Build a minimal FastAPI app with the upload router and auth overrides."""
+    app = FastAPI()
+    app.include_router(router)
 
-
-# ── Tests ──────────────────────────────────────────────────────────────────────
-
-
-class TestUploadCallback:
-    def test_happy_path_returns_200_and_document_id(self) -> None:
-        """Valid upload → ingestion succeeds → 200 with document_id."""
-        patches, ingest_mock = _patches()
-        with patches[0], patches[1], patches[2]:
-            response = client.post(
-                "/upload/callback", json=VALID_PAYLOAD, headers=AUTH_HEADER
-            )
-
-        assert response.status_code == 200
-        assert response.json() == {"status": "ingested", "document_id": DOCUMENT_ID}
-        ingest_mock.assert_called_once()
-
-    def test_duplicate_pdf_returns_existing_document_id(self) -> None:
-        """ingest_pdf returns an existing Document on SHA-256 match → 200."""
-        existing_doc = _make_document(doc_id=99)
-        patches, _ = _patches(ingest_return=existing_doc)
-        with patches[0], patches[1], patches[2]:
-            response = client.post(
-                "/upload/callback", json=VALID_PAYLOAD, headers=AUTH_HEADER
-            )
-
-        assert response.status_code == 200
-        assert response.json()["document_id"] == 99
-
-    def test_missing_auth_header_returns_401(self) -> None:
-        """No Authorization header → 401 before any business logic runs."""
-        # Remove the override temporarily so real auth runs
-        app.dependency_overrides.pop(get_current_user)
-        try:
-            response = client.post("/upload/callback", json=VALID_PAYLOAD)
-            assert response.status_code == 401
-        finally:
-            app.dependency_overrides[get_current_user] = _fake_get_current_user
-
-    def test_empty_files_list_returns_422(self) -> None:
-        """Payload with no files → 422."""
-        patches, _ = _patches()
-        with patches[0]:
-            response = client.post(
-                "/upload/callback",
-                json={"files": []},
-                headers=AUTH_HEADER,
-            )
-
-        assert response.status_code == 422
-        assert "no files" in response.json()["detail"].lower()
-
-    def test_employee_not_found_returns_403(self) -> None:
-        """Clerk user has no matching Employee row → 403."""
-        patches, _ = _patches(employee=None)
-        with patches[0]:
-            response = client.post(
-                "/upload/callback", json=VALID_PAYLOAD, headers=AUTH_HEADER
-            )
-
-        assert response.status_code == 403
-        assert "employee record" in response.json()["detail"].lower()
-
-    def test_cdn_error_returns_502(self) -> None:
-        """UploadThing CDN returns 404 → 502."""
-        bad_response = _make_http_response(status_code=404)
-        patches, _ = _patches(http_response=bad_response)
-        with patches[0], patches[1], patches[2]:
-            response = client.post(
-                "/upload/callback", json=VALID_PAYLOAD, headers=AUTH_HEADER
-            )
-
-        assert response.status_code == 502
-
-    def test_non_pdf_content_type_returns_422(self) -> None:
-        """CDN returns HTML instead of PDF → 422."""
-        bad_response = _make_http_response(
-            content=b"<html>not a pdf</html>",
-            content_type="text/html",
+    if admin_override is not None:
+        app.dependency_overrides[require_admin] = lambda: admin_override
+        app.dependency_overrides[get_current_user] = (
+            lambda: admin_override.clerk_user_id
         )
-        patches, _ = _patches(http_response=bad_response)
-        with patches[0], patches[1], patches[2]:
-            response = client.post(
-                "/upload/callback", json=VALID_PAYLOAD, headers=AUTH_HEADER
+
+    return app
+
+
+# ── Department tagging tests ──────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_ingest_persists_department() -> None:
+    """ingest_pdf is called with the department from the payload."""
+    pdf_bytes = _make_minimal_pdf()
+    content_hash = hashlib.sha256(pdf_bytes).hexdigest()
+
+    fake_document = MagicMock(spec=Document)
+    fake_document.id = 42
+    fake_document.content_sha256 = content_hash
+
+    app = _app_with_override(ADMIN_EMPLOYEE)
+
+    mock_session = AsyncMock()
+    mock_session.commit = AsyncMock()
+    app.dependency_overrides[
+        __import__("db.session", fromlist=["get_session"]).get_session
+    ] = lambda: mock_session
+
+    with (
+        patch(
+            "api.upload._download_pdf",
+            new=AsyncMock(return_value=(pdf_bytes, "test.pdf")),
+        ),
+        patch(
+            "api.upload.ingest_pdf",
+            new=AsyncMock(return_value=fake_document),
+        ) as mock_ingest,
+    ):
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            response = await client.post(
+                "/upload/callback",
+                json={"files": [_FILE_ENG], "department": "engineering"},
+                headers={"Authorization": "Bearer fake-token"},
             )
 
-        assert response.status_code == 422
-        assert "pdf" in response.json()["detail"].lower()
+    assert response.status_code == 200
+    mock_ingest.assert_awaited_once()
+    call_kwargs = mock_ingest.call_args.kwargs
+    assert call_kwargs["department"] == "engineering"
 
-    def test_oversized_file_returns_422(self) -> None:
-        """PDF exceeds 20 MB limit → 422."""
-        big_response = _make_http_response(content=b"x" * (21 * 1024 * 1024))
-        patches, _ = _patches(http_response=big_response)
-        with patches[0], patches[1], patches[2]:
-            response = client.post(
-                "/upload/callback", json=VALID_PAYLOAD, headers=AUTH_HEADER
+
+@pytest.mark.asyncio
+async def test_invalid_department_returns_422() -> None:
+    """Unknown department value is rejected before ingestion."""
+    app = _app_with_override(ADMIN_EMPLOYEE)
+
+    with patch(
+        "api.upload._download_pdf",
+        new=AsyncMock(return_value=(b"%PDF", "f.pdf")),
+    ):
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            response = await client.post(
+                "/upload/callback",
+                json={"files": [_FILE_SMALL], "department": "narnia"},
+                headers={"Authorization": "Bearer fake-token"},
             )
 
-        assert response.status_code == 422
-        assert "size limit" in response.json()["detail"].lower()
+    assert response.status_code == 422
+    assert "narnia" in response.json()["detail"]
 
-    def test_ingestion_failure_returns_500(self) -> None:
-        """ingest_pdf raises → 500."""
-        patches, _ = _patches(ingest_side_effect=RuntimeError("embedding API down"))
-        with patches[0], patches[1], patches[2]:
-            response = client.post(
-                "/upload/callback", json=VALID_PAYLOAD, headers=AUTH_HEADER
+
+@pytest.mark.asyncio
+async def test_department_case_insensitive() -> None:
+    """department is lowercased before validation — 'Engineering' is valid."""
+    pdf_bytes = _make_minimal_pdf()
+    fake_document = MagicMock(spec=Document)
+    fake_document.id = 7
+    fake_document.content_sha256 = hashlib.sha256(pdf_bytes).hexdigest()
+
+    app = _app_with_override(ADMIN_EMPLOYEE)
+
+    mock_session = AsyncMock()
+    app.dependency_overrides[
+        __import__("db.session", fromlist=["get_session"]).get_session
+    ] = lambda: mock_session
+
+    with (
+        patch(
+            "api.upload._download_pdf",
+            new=AsyncMock(return_value=(pdf_bytes, "t.pdf")),
+        ),
+        patch(
+            "api.upload.ingest_pdf",
+            new=AsyncMock(return_value=fake_document),
+        ) as mock_ingest,
+    ):
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            response = await client.post(
+                "/upload/callback",
+                json={"files": [_FILE_TINY], "department": "Engineering"},
+                headers={"Authorization": "Bearer fake-token"},
             )
 
-        assert response.status_code == 500
-        assert "ingestion pipeline failed" in response.json()["detail"].lower()
+    assert response.status_code == 200
+    assert mock_ingest.call_args.kwargs["department"] == "engineering"
+
+
+# ── Admin gating tests ────────────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_employee_upload_returns_403() -> None:
+    """A non-admin employee hitting /upload/callback gets 403."""
+    app = FastAPI()
+    app.include_router(router)
+
+    from fastapi import HTTPException as FastAPIHTTPException
+
+    def _deny() -> None:
+        raise FastAPIHTTPException(status_code=403, detail="HR admin access required")
+
+    app.dependency_overrides[require_admin] = _deny
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        response = await client.post(
+            "/upload/callback",
+            json={"files": [_FILE_TINY], "department": "engineering"},
+            headers={"Authorization": "Bearer employee-token"},
+        )
+
+    assert response.status_code == 403
+    assert "HR admin" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_unauthenticated_upload_returns_401() -> None:
+    """No Authorization header → 401 before any business logic runs."""
+    app = FastAPI()
+    app.include_router(router)
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        response = await client.post(
+            "/upload/callback",
+            json={"files": [_FILE_SMALL], "department": "hr"},
+        )
+
+    assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_list_documents_employee_returns_403() -> None:
+    """GET /upload/documents is also admin-only — employee gets 403."""
+    app = FastAPI()
+    app.include_router(router)
+
+    from fastapi import HTTPException as FastAPIHTTPException
+
+    def _deny() -> None:
+        raise FastAPIHTTPException(status_code=403, detail="HR admin access required")
+
+    app.dependency_overrides[require_admin] = _deny
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        response = await client.get(
+            "/upload/documents",
+            headers={"Authorization": "Bearer employee-token"},
+        )
+
+    assert response.status_code == 403

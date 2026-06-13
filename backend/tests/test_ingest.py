@@ -80,6 +80,7 @@ def test_ingest_skips_duplicate_without_embedding() -> None:
                 filename="dup.pdf",
                 uploaded_by=None,
                 session=session,
+                department="engineering",
             )
         )
 
@@ -143,6 +144,7 @@ async def test_ingest_and_similarity_search(test_session: object) -> None:
         filename="policy.pdf",
         uploaded_by=None,
         session=test_session,  # type: ignore[arg-type]
+        department="engineering",
     )
     assert doc.id is not None
     assert len(doc.chunks) >= 1
