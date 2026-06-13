@@ -39,8 +39,13 @@ _ALLOWED_CONTENT_TYPES = {"application/pdf"}
 _MAX_PDF_BYTES = 20 * 1024 * 1024  # 20 MB
 
 _VALID_DEPARTMENTS = {
-    "engineering", "sales", "marketing",
-    "hr", "finance", "operations", "other",
+    "engineering",
+    "sales",
+    "marketing",
+    "hr",
+    "finance",
+    "operations",
+    "other",
 }
 
 # ── Schemas ────────────────────────────────────────────────────────────────────
@@ -143,7 +148,7 @@ async def _download_pdf(url: str) -> tuple[bytes, str]:
 )
 async def upload_callback(
     payload: UploadCallbackPayload,
-    admin: Employee = Depends(require_admin), # noqa: B008
+    admin: Employee = Depends(require_admin),  # noqa: B008
     session: AsyncSession = Depends(get_session),  # noqa: B008
 ) -> IngestResponse:
     """
@@ -167,7 +172,7 @@ async def upload_callback(
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"Invalid department {department!r}. "
-                   f"Must be one of: {sorted(_VALID_DEPARTMENTS)}",
+            f"Must be one of: {sorted(_VALID_DEPARTMENTS)}",
         )
 
     file_meta = payload.files[0]
@@ -175,7 +180,9 @@ async def upload_callback(
 
     logger.info(
         "PDF upload by admin=%d department=%r url=%s",
-        admin.id, department, file_url,
+        admin.id,
+        department,
+        file_url,
     )
     pdf_bytes, filename = await _download_pdf(file_url)
 
@@ -214,7 +221,7 @@ async def upload_callback(
     summary="List all documents (HR admin only)",
 )
 async def list_documents(
-    admin: Employee = Depends(require_admin), # noqa: B008
+    admin: Employee = Depends(require_admin),  # noqa: B008
     session: AsyncSession = Depends(get_session),  # noqa: B008
 ) -> DocumentListResponse:
     """

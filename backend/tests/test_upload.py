@@ -207,9 +207,7 @@ async def test_employee_upload_returns_403() -> None:
     from fastapi import HTTPException as FastAPIHTTPException
 
     def _deny() -> None:
-        raise FastAPIHTTPException(
-            status_code=403, detail="HR admin access required"
-        )
+        raise FastAPIHTTPException(status_code=403, detail="HR admin access required")
 
     app.dependency_overrides[require_admin] = _deny
 
@@ -252,9 +250,7 @@ async def test_list_documents_employee_returns_403() -> None:
     from fastapi import HTTPException as FastAPIHTTPException
 
     def _deny() -> None:
-        raise FastAPIHTTPException(
-            status_code=403, detail="HR admin access required"
-        )
+        raise FastAPIHTTPException(status_code=403, detail="HR admin access required")
 
     app.dependency_overrides[require_admin] = _deny
 
