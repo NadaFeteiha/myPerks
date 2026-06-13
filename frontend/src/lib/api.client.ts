@@ -5,35 +5,13 @@ import { useMemo } from "react";
 
 const BACKEND_PREFIX = "/api/backend";
 
-export interface AdminEmployeeDetail {
-  balances: AdminBalanceSnapshot[];
-  benefits_year_reset: string;
-  department: string;
-  email: string;
-  id: number;
-  joined_date: string;
-  linked: boolean;
-  name: string;
-  role: string;
-}
-
-export interface ApproveRejectBody {
-  rejection_reason?: string;
-  status: "approved" | "rejected";
-}
-
-export interface ApproveRejectResponse {
-  employee_email: string;
-  employee_name: string;
-  new_status: string;
-  rejection_reason: null | string;
-  request_id: number;
-  request_type: string;
-}
-
 export interface CreateRequestPayload {
   body: Record<string, unknown>;
   type: string;
+}
+
+export interface DocumentListResponse {
+  documents: DocumentItem[];
 }
 
 export interface OnboardRequest {
@@ -43,12 +21,10 @@ export interface OnboardRequest {
 }
 
 export interface OnboardResponse {
-  benefits_year_reset: string;
   clerk_user_id: string;
   department: null | string;
   email: null | string;
   id: number;
-  joined_date: string;
   name: null | string;
   role: "employee" | "hr_admin";
 }
@@ -61,11 +37,11 @@ export interface RequestHistoryItem {
   type: string;
 }
 
-interface AdminBalanceSnapshot {
-  leave_type: string;
-  remaining_days: number;
-  total_days: number;
-  used_days: number;
+interface DocumentItem {
+  department: string;
+  filename: string;
+  id: number;
+  uploaded_at: string;
 }
 
 export function useApi() {
@@ -110,36 +86,10 @@ export function useApi() {
       return response.json() as Promise<T>;
     }
 
-    async function apiPatch<T>(path: string, body: unknown): Promise<T> {
-      const token = await getToken();
-      const response = await fetch(`${BACKEND_PREFIX}${path}`, {
-        body: JSON.stringify(body),
-        cache: "no-store",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        method: "PATCH",
-      });
-      if (!response.ok) {
-        const detail = await response
-          .json()
-          .then((j: { detail?: string }) => j.detail)
-          .catch(() => undefined);
-        throw new Error(
-          `API error: ${response.status}${detail ? ` – ${detail}` : ` ${response.statusText}`}`,
-        );
-      }
-      return response.json() as Promise<T>;
-    }
-
     return {
-      approveOrRejectRequest: (requestId: number, body: ApproveRejectBody) =>
-        apiPatch<ApproveRejectResponse>(`/admin/requests/${requestId}`, body),
       createRequest: (payload: CreateRequestPayload) =>
         apiPost<RequestHistoryItem>("/me/requests", payload),
-      getAdminEmployeeDetail: (id: number) =>
-        apiGet<AdminEmployeeDetail>(`/admin/employees/${id}`),
+      getDocuments: () => apiGet<DocumentListResponse>("/upload/documents"),
       getMe: () => apiGet<OnboardResponse>("/employees/me"),
       onboard: (body: OnboardRequest) =>
         apiPost<OnboardResponse>("/employees/me", body),
