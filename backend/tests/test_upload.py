@@ -7,8 +7,6 @@ backend/tests/test_upload.py
 from __future__ import annotations
 
 import hashlib
-import io
-from collections.abc import AsyncGenerator
 from datetime import date
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -44,6 +42,25 @@ REGULAR_EMPLOYEE = Employee(
     benefits_year_reset=date(2024, 1, 1),
 )
 
+_FILE_ENG = {
+    "url": "https://cdn.example.com/test.pdf",
+    "name": "test.pdf",
+    "size": 1024,
+    "key": "abc123",
+}
+_FILE_SMALL = {
+    "url": "https://cdn.example.com/f.pdf",
+    "name": "f.pdf",
+    "size": 100,
+    "key": "k",
+}
+_FILE_TINY = {
+    "url": "https://cdn.example.com/t.pdf",
+    "name": "t.pdf",
+    "size": 512,
+    "key": "k2",
+}
+
 
 def _make_minimal_pdf() -> bytes:
     """Return a minimal valid-looking PDF byte string for testing."""
@@ -56,18 +73,18 @@ def _make_minimal_pdf() -> bytes:
     )
 
 
-def _app_with_override(admin_override: Employee | None = ADMIN_EMPLOYEE) -> FastAPI:
+def _app_with_override(
+    admin_override: Employee | None = ADMIN_EMPLOYEE,
+) -> FastAPI:
     """Build a minimal FastAPI app with the upload router and auth overrides."""
     app = FastAPI()
     app.include_router(router)
 
     if admin_override is not None:
-        # Successful admin auth
         app.dependency_overrides[require_admin] = lambda: admin_override
-        app.dependency_overrides[get_current_user] = lambda: admin_override.clerk_user_id
-    else:
-        # No override — require_admin will fire for real (we mock it to 403 below)
-        pass
+        app.dependency_overrides[get_current_user] = (
+            lambda: admin_override.clerk_user_id
+        )
 
     return app
 
@@ -94,18 +111,21 @@ async def test_ingest_persists_department() -> None:
     ] = lambda: mock_session
 
     with (
-        patch("api.upload._download_pdf", new=AsyncMock(return_value=(pdf_bytes, "test.pdf"))),
-        patch("api.upload.ingest_pdf", new=AsyncMock(return_value=fake_document)) as mock_ingest,
+        patch(
+            "api.upload._download_pdf",
+            new=AsyncMock(return_value=(pdf_bytes, "test.pdf")),
+        ),
+        patch(
+            "api.upload.ingest_pdf",
+            new=AsyncMock(return_value=fake_document),
+        ) as mock_ingest,
     ):
         async with AsyncClient(
             transport=ASGITransport(app=app), base_url="http://test"
         ) as client:
             response = await client.post(
                 "/upload/callback",
-                json={
-                    "files": [{"url": "https://cdn.example.com/test.pdf", "name": "test.pdf", "size": 1024, "key": "abc123"}],
-                    "department": "engineering",
-                },
+                json={"files": [_FILE_ENG], "department": "engineering"},
                 headers={"Authorization": "Bearer fake-token"},
             )
 
@@ -120,16 +140,16 @@ async def test_invalid_department_returns_422() -> None:
     """Unknown department value is rejected before ingestion."""
     app = _app_with_override(ADMIN_EMPLOYEE)
 
-    with patch("api.upload._download_pdf", new=AsyncMock(return_value=(b"%PDF", "f.pdf"))):
+    with patch(
+        "api.upload._download_pdf",
+        new=AsyncMock(return_value=(b"%PDF", "f.pdf")),
+    ):
         async with AsyncClient(
             transport=ASGITransport(app=app), base_url="http://test"
         ) as client:
             response = await client.post(
                 "/upload/callback",
-                json={
-                    "files": [{"url": "https://cdn.example.com/f.pdf", "name": "f.pdf", "size": 100, "key": "k"}],
-                    "department": "narnia",
-                },
+                json={"files": [_FILE_SMALL], "department": "narnia"},
                 headers={"Authorization": "Bearer fake-token"},
             )
 
@@ -153,18 +173,21 @@ async def test_department_case_insensitive() -> None:
     ] = lambda: mock_session
 
     with (
-        patch("api.upload._download_pdf", new=AsyncMock(return_value=(pdf_bytes, "t.pdf"))),
-        patch("api.upload.ingest_pdf", new=AsyncMock(return_value=fake_document)) as mock_ingest,
+        patch(
+            "api.upload._download_pdf",
+            new=AsyncMock(return_value=(pdf_bytes, "t.pdf")),
+        ),
+        patch(
+            "api.upload.ingest_pdf",
+            new=AsyncMock(return_value=fake_document),
+        ) as mock_ingest,
     ):
         async with AsyncClient(
             transport=ASGITransport(app=app), base_url="http://test"
         ) as client:
             response = await client.post(
                 "/upload/callback",
-                json={
-                    "files": [{"url": "https://cdn.example.com/t.pdf", "name": "t.pdf", "size": 512, "key": "k2"}],
-                    "department": "Engineering",
-                },
+                json={"files": [_FILE_TINY], "department": "Engineering"},
                 headers={"Authorization": "Bearer fake-token"},
             )
 
@@ -181,11 +204,12 @@ async def test_employee_upload_returns_403() -> None:
     app = FastAPI()
     app.include_router(router)
 
-    # Override require_admin to raise 403, simulating a regular employee
     from fastapi import HTTPException as FastAPIHTTPException
 
     def _deny() -> None:
-        raise FastAPIHTTPException(status_code=403, detail="HR admin access required")
+        raise FastAPIHTTPException(
+            status_code=403, detail="HR admin access required"
+        )
 
     app.dependency_overrides[require_admin] = _deny
 
@@ -194,10 +218,7 @@ async def test_employee_upload_returns_403() -> None:
     ) as client:
         response = await client.post(
             "/upload/callback",
-            json={
-                "files": [{"url": "https://cdn.example.com/t.pdf", "name": "t.pdf", "size": 512, "key": "k"}],
-                "department": "engineering",
-            },
+            json={"files": [_FILE_TINY], "department": "engineering"},
             headers={"Authorization": "Bearer employee-token"},
         )
 
@@ -210,18 +231,13 @@ async def test_unauthenticated_upload_returns_401() -> None:
     """No Authorization header → 401 before any business logic runs."""
     app = FastAPI()
     app.include_router(router)
-    # No overrides — real require_admin → real get_current_user → 401
 
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
     ) as client:
         response = await client.post(
             "/upload/callback",
-            json={
-                "files": [{"url": "https://cdn.example.com/t.pdf", "name": "t.pdf", "size": 100, "key": "k"}],
-                "department": "hr",
-            },
-            # No Authorization header
+            json={"files": [_FILE_SMALL], "department": "hr"},
         )
 
     assert response.status_code == 401
@@ -236,7 +252,9 @@ async def test_list_documents_employee_returns_403() -> None:
     from fastapi import HTTPException as FastAPIHTTPException
 
     def _deny() -> None:
-        raise FastAPIHTTPException(status_code=403, detail="HR admin access required")
+        raise FastAPIHTTPException(
+            status_code=403, detail="HR admin access required"
+        )
 
     app.dependency_overrides[require_admin] = _deny
 

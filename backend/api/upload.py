@@ -102,7 +102,10 @@ async def _download_pdf(url: str) -> tuple[bytes, str]:
         )
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Could not download file from storage ({exc.response.status_code}).",
+            detail=(
+                f"Could not download file from storage"
+                f" ({exc.response.status_code})."
+            ),
         ) from exc
     except httpx.RequestError as exc:
         logger.error("Network error downloading %s: %s", url, exc)
@@ -136,11 +139,11 @@ async def _download_pdf(url: str) -> tuple[bytes, str]:
     "/callback",
     response_model=IngestResponse,
     status_code=status.HTTP_200_OK,
-    summary="UploadThing webhook — ingest uploaded PDF into the RAG pipeline (HR admin only)",
+    summary="Ingest uploaded PDF into the RAG pipeline (HR admin only)",
 )
 async def upload_callback(
     payload: UploadCallbackPayload,
-    admin: Employee = Depends(require_admin),
+    admin: Employee = Depends(require_admin), # noqa: B008
     session: AsyncSession = Depends(get_session),  # noqa: B008
 ) -> IngestResponse:
     """
@@ -211,7 +214,7 @@ async def upload_callback(
     summary="List all documents (HR admin only)",
 )
 async def list_documents(
-    admin: Employee = Depends(require_admin),
+    admin: Employee = Depends(require_admin), # noqa: B008
     session: AsyncSession = Depends(get_session),  # noqa: B008
 ) -> DocumentListResponse:
     """
