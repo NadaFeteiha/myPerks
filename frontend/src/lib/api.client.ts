@@ -10,12 +10,14 @@ export interface CreateRequestPayload {
   type: string;
 }
 
+export interface DocumentListResponse {
+  documents: DocumentItem[];
+}
 export interface OnboardRequest {
   department?: string;
   email: string;
   name: string;
 }
-
 export interface OnboardResponse {
   clerk_user_id: string;
   department: null | string;
@@ -31,6 +33,12 @@ export interface RequestHistoryItem {
   id: number;
   status: string;
   type: string;
+}
+interface DocumentItem {
+  department: string;
+  filename: string;
+  id: number;
+  uploaded_at: string;
 }
 
 export function useApi() {
@@ -78,6 +86,7 @@ export function useApi() {
     return {
       createRequest: (payload: CreateRequestPayload) =>
         apiPost<RequestHistoryItem>("/me/requests", payload),
+      getDocuments: () => apiGet<DocumentListResponse>("/upload/documents"),
       getMe: () => apiGet<OnboardResponse>("/employees/me"),
       onboard: (body: OnboardRequest) =>
         apiPost<OnboardResponse>("/employees/me", body),
