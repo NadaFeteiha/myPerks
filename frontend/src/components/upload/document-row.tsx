@@ -3,7 +3,7 @@
 import { FileText } from "lucide-react";
 
 type DocumentRowProps = {
-  department: string;
+  department?: string;
   filename: string;
   uploaded_at: string;
 };
@@ -24,9 +24,11 @@ export function DocumentRow({
           {uploaded_at}
         </p>
       </div>
-      <span className="shrink-0 rounded-full bg-brand-purple-100 px-2 py-0.5 text-[11px] font-medium capitalize text-brand-purple-700 dark:bg-brand-purple-900/40 dark:text-brand-purple-300">
-        {department}
-      </span>
+      {department && (
+        <span className="shrink-0 rounded-full bg-brand-purple-100 px-2 py-0.5 text-[11px] font-medium capitalize text-brand-purple-700 dark:bg-brand-purple-900/40 dark:text-brand-purple-300">
+          {department}
+        </span>
+      )}
     </div>
   );
 }

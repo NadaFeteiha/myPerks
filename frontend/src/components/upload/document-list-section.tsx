@@ -3,7 +3,7 @@
 import { DocumentRow } from "./document-row";
 
 type Document = {
-  department: string;
+  department?: string; // make optional
   filename: string;
   id: number;
   uploaded_at: string;
