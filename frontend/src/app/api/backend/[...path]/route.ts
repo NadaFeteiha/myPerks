@@ -42,8 +42,17 @@ async function handler(
       method: req.method,
     });
 
+    // Strip hop-by-hop headers from the upstream response so the runtime
+    // can manage framing for the (possibly streamed) body itself.
+    const responseHeaders = new Headers(upstream.headers);
+    responseHeaders.delete("connection");
+    responseHeaders.delete("keep-alive");
+    responseHeaders.delete("transfer-encoding");
+    responseHeaders.delete("content-length");
+    responseHeaders.delete("content-encoding");
+
     return new NextResponse(upstream.body, {
-      headers: upstream.headers,
+      headers: responseHeaders,
       status: upstream.status,
       statusText: upstream.statusText,
     });

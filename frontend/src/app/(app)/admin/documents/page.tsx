@@ -1,7 +1,7 @@
 "use client";
 
 import { useAuth } from "@clerk/nextjs";
-import React, { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { DocumentListSection } from "@/components/upload/document-list-section";
 import { UploadSection } from "@/components/upload/upload-section";
@@ -12,7 +12,7 @@ type Document = {
   uploaded_at: string;
 };
 
-export default function UploadPage() {
+export default function AdminDocumentsPage() {
   const { getToken } = useAuth();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -45,6 +45,11 @@ export default function UploadPage() {
 
   return (
     <div className="flex-1 overflow-y-auto p-6">
+      <h1 className="mb-1 text-xl font-semibold">Documents</h1>
+      <p className="mb-6 text-sm text-muted-foreground">
+        Upload company documents for the AI assistant&apos;s knowledge base.
+      </p>
+
       <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.07em] text-muted-foreground">
         Upload documents
       </p>
@@ -53,7 +58,7 @@ export default function UploadPage() {
         Uploaded documents
       </p>
       {isLoading && (
-        <p className="text=[12px]  text-muted-foreground">Loading...</p>
+        <p className="text-[12px] text-muted-foreground">Loading...</p>
       )}
       {error && <p className="text-[12px] text-red-500">{error}</p>}
       {!isLoading && !error && <DocumentListSection documents={documents} />}
