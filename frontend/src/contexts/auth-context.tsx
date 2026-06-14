@@ -4,6 +4,7 @@ import { useUser } from "@clerk/nextjs";
 import { createContext, useContext, useEffect, useState } from "react";
 
 import { useApi } from "@/lib/api.client";
+import { formatIsoMonthDay, formatIsoMonthYear } from "@/lib/format";
 
 type AuthContextType = {
   isAdmin: boolean;
@@ -14,9 +15,11 @@ type AuthContextType = {
 type Role = "employee" | "hr_admin";
 
 type User = {
+  benefitsYearReset: string;
   department: string;
   email: string;
   initials: string;
+  joinedDate: string;
   name: string;
   role: Role;
 };
@@ -43,15 +46,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .then((data) => {
         const name = data.name ?? "User";
         setUser({
+          benefitsYearReset: formatIsoMonthDay(data.benefits_year_reset),
           department: data.department ?? "",
           email: data.email ?? "",
           initials: getInitials(name),
+          joinedDate: formatIsoMonthYear(data.joined_date),
           name,
           role: data.role,
         });
       })
       .catch((err: unknown) => {
-        console.error("[MyPerks] Failed to load user profile:", err);
+        // 404 means the employee hasn't completed onboarding yet — the
+        // dashboard page handles redirecting to /onboarding for that case.
+        const isNotFound = err instanceof Error && err.message.includes("404");
+        if (!isNotFound) {
+          console.error("[MyPerks] Failed to load user profile:", err);
+        }
       });
   }, [isSignedIn, api]);
 

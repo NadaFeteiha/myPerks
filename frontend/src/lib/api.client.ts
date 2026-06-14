@@ -43,10 +43,12 @@ export interface OnboardRequest {
 }
 
 export interface OnboardResponse {
+  benefits_year_reset: string;
   clerk_user_id: string;
   department: null | string;
   email: null | string;
   id: number;
+  joined_date: string;
   name: null | string;
   role: "employee" | "hr_admin";
 }

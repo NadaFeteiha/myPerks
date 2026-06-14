@@ -16,11 +16,28 @@ export function formatIsoDate(iso: string): string {
   });
 }
 
+/** Format a YYYY-MM-DD string as "Mon D", e.g. "Jan 1". */
+export function formatIsoMonthDay(iso: string): string {
+  const [year, month, day] = iso.split("T")[0].split("-").map(Number);
+  return new Date(year, month - 1, day).toLocaleDateString("en-US", {
+    day: "numeric",
+    month: "short",
+  });
+}
+
+/** Format a YYYY-MM-DD string as "Mon YYYY", e.g. "Jan 2023". */
+export function formatIsoMonthYear(iso: string): string {
+  const [year, month, day] = iso.split("T")[0].split("-").map(Number);
+  return new Date(year, month - 1, day).toLocaleDateString("en-US", {
+    month: "short",
+    year: "numeric",
+  });
+}
+
 export function formatRequestType(type: string): string {
   if (type.toLowerCase() === "pto") return "PTO";
   return type.charAt(0).toUpperCase() + type.slice(1);
 }
-
 /**
  * For leave requests, return "Jun 6 – Jun 12, 2026" using start/end from body.
  * For reimbursements (no start_date), fall back to the submission date.
