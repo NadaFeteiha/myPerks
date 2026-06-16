@@ -36,6 +36,10 @@ export interface CreateRequestPayload {
   type: string;
 }
 
+export interface DocumentListResponse {
+  documents: DocumentItem[];
+}
+
 export interface OnboardRequest {
   department?: string;
   email: string;
@@ -66,6 +70,13 @@ interface AdminBalanceSnapshot {
   remaining_days: number;
   total_days: number;
   used_days: number;
+}
+
+interface DocumentItem {
+  department: string;
+  filename: string;
+  id: number;
+  uploaded_at: string;
 }
 
 export function useApi() {
@@ -140,6 +151,7 @@ export function useApi() {
         apiPost<RequestHistoryItem>("/me/requests", payload),
       getAdminEmployeeDetail: (id: number) =>
         apiGet<AdminEmployeeDetail>(`/admin/employees/${id}`),
+      getDocuments: () => apiGet<DocumentListResponse>("/upload/documents"),
       getMe: () => apiGet<OnboardResponse>("/employees/me"),
       onboard: (body: OnboardRequest) =>
         apiPost<OnboardResponse>("/employees/me", body),

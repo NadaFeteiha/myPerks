@@ -6,6 +6,18 @@ import React, { useEffect, useState } from "react";
 
 import { useUploadThing } from "@/lib/uploadthing";
 
+const DEPARTMENTS = [
+  "engineering",
+  "finance",
+  "hr",
+  "marketing",
+  "operations",
+  "other",
+  "sales",
+] as const;
+
+type Department = (typeof DEPARTMENTS)[number];
+
 type UploadSectionProps = {
   onUploadComplete: () => void;
 };
@@ -17,6 +29,7 @@ export function UploadSection({ onUploadComplete }: UploadSectionProps) {
   const [uploadState, setUploadState] = useState<UploadState>("idle");
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<null | string>(null);
+  const [department, setDepartment] = useState<Department>("engineering");
 
   const isBusy = uploadState !== "idle";
 
@@ -47,6 +60,7 @@ export function UploadSection({ onUploadComplete }: UploadSectionProps) {
           const token = await getToken();
           const res = await fetch("/api/backend/upload/callback", {
             body: JSON.stringify({
+              department,
               files: [{ key: f.key, name: f.name, size: f.size, url: f.url }],
             }),
             headers: {
@@ -91,7 +105,31 @@ export function UploadSection({ onUploadComplete }: UploadSectionProps) {
   };
 
   return (
-    <div className="rounded-xl border border-border bg-white p-4 dark: bg-card">
+    <div className="rounded-xl border border-border bg-white p-4 dark:bg-card">
+      {/* Department selector */}
+      <div className="mb-3">
+        <label
+          className="mb-1 block text-[12px] font-medium text-muted-foreground"
+          htmlFor="department-select"
+        >
+          Department
+        </label>
+        <select
+          className="w-full rounded-lg border border-border bg-background px-3 py-1.5 text-[13px] text-foreground focus:outline-none focus:ring-2 focus:ring-brand-purple-400 disabled:opacity-50"
+          disabled={isBusy}
+          id="department-select"
+          onChange={(e) => setDepartment(e.target.value as Department)}
+          value={department}
+        >
+          {DEPARTMENTS.map((d) => (
+            <option key={d} value={d}>
+              {d.charAt(0).toUpperCase() + d.slice(1)}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Drop zone */}
       <label
         className="flex cursor-pointer flex-col items-center rounded-lg border border-dashed border-border bg-background px-4 py-6 text-center transition-colors hover:bg-brand-purple-50 dark:hover:bg-brand-purple-900/30"
         htmlFor="pdf-upload-input"
@@ -101,7 +139,7 @@ export function UploadSection({ onUploadComplete }: UploadSectionProps) {
           {stateLabel(uploadState)}
         </p>
         <p className="mt-0.5 text-[11px] text-muted-foreground">
-          PDF only · max 16MB
+          PDF only · max 16 MB
         </p>
         <input
           accept=".pdf"
