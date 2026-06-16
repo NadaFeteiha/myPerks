@@ -20,11 +20,19 @@ from sqlalchemy.orm import selectinload
 
 from api.auth import require_admin
 from api.schemas.admin import (
+    ApproveExtractionBody,
+    ApproveExtractionResponse,
     ApproveRejectBody,
     ApproveRejectResponse,
     BalanceSnapshot,
+    DepartmentBalanceItem,
+    DepartmentBalancesResponse,
+    DepartmentPoliciesResponse,
+    DepartmentPolicyItem,
+    DocumentExtractionResponse,
     EmployeeDetail,
     EmployeeListItem,
+    ExtractionData,
     PaginatedEmployees,
     PaginatedRequests,
     PatchEmployeeBody,
@@ -34,8 +42,9 @@ from api.schemas.admin import (
     RequestHistorySnapshot,
     RequestListItem,
 )
-from db.models import Employee, RequestHistory, VacationBalance
+from db.models import Document, DocumentExtraction, Employee, RequestHistory, VacationBalance
 from db.session import get_session
+from rag.extract import extract_document_policy
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -422,3 +431,299 @@ async def approve_or_reject_request(
             for b in balances
         ],
     )
+
+
+# ── Document extraction endpoints ─────────────────────────────────────────────
+
+
+def _parse_extraction_data(raw: str | None) -> ExtractionData | None:
+    if not raw:
+        return None
+    try:
+        d = json.loads(raw)
+        return ExtractionData(
+            vacation_days=d.get("vacation_days"),
+            sick_days=d.get("sick_days"),
+            pto_days=d.get("pto_days"),
+            notes=str(d.get("notes", "")),
+        )
+    except Exception:
+        return None
+
+
+@router.post(
+    "/documents/{document_id}/extract",
+    response_model=DocumentExtractionResponse,
+    summary="Trigger LLM extraction of HR policy data from a document",
+)
+async def trigger_extraction(
+    document_id: int,
+    db: AsyncSession = Depends(get_session),  # noqa: B008
+    _admin: Employee = Depends(require_admin),  # noqa: B008
+) -> DocumentExtractionResponse:
+    doc = (
+        await db.execute(select(Document).where(Document.id == document_id))
+    ).scalar_one_or_none()
+    if doc is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+
+    extraction = await extract_document_policy(document_id=document_id, session=db)
+    await db.commit()
+
+    return DocumentExtractionResponse(
+        id=cast(int, extraction.id),
+        document_id=cast(int, extraction.document_id),
+        status=cast(str, extraction.status),
+        extracted_data=_parse_extraction_data(cast(str | None, extraction.extracted_data)),
+        approved_data=_parse_extraction_data(cast(str | None, extraction.approved_data)),
+        reviewed_at=extraction.reviewed_at,
+        error_message=cast(str | None, extraction.error_message),
+    )
+
+
+@router.get(
+    "/documents/{document_id}/extraction",
+    response_model=DocumentExtractionResponse | None,
+    summary="Get the extraction result for a document",
+)
+async def get_extraction(
+    document_id: int,
+    db: AsyncSession = Depends(get_session),  # noqa: B008
+    _admin: Employee = Depends(require_admin),  # noqa: B008
+) -> DocumentExtractionResponse | None:
+    extraction = (
+        await db.execute(
+            select(DocumentExtraction).where(
+                DocumentExtraction.document_id == document_id
+            )
+        )
+    ).scalar_one_or_none()
+
+    if extraction is None:
+        return None
+
+    return DocumentExtractionResponse(
+        id=cast(int, extraction.id),
+        document_id=cast(int, extraction.document_id),
+        status=cast(str, extraction.status),
+        extracted_data=_parse_extraction_data(cast(str | None, extraction.extracted_data)),
+        approved_data=_parse_extraction_data(cast(str | None, extraction.approved_data)),
+        reviewed_at=extraction.reviewed_at,
+        error_message=cast(str | None, extraction.error_message),
+    )
+
+
+@router.post(
+    "/documents/{document_id}/extraction/approve",
+    response_model=ApproveExtractionResponse,
+    summary="Approve extraction data and apply it to department employees",
+)
+async def approve_extraction(
+    document_id: int,
+    body: ApproveExtractionBody,
+    db: AsyncSession = Depends(get_session),  # noqa: B008
+    admin: Employee = Depends(require_admin),  # noqa: B008
+) -> ApproveExtractionResponse:
+    doc = (
+        await db.execute(select(Document).where(Document.id == document_id))
+    ).scalar_one_or_none()
+    if doc is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+
+    extraction = (
+        await db.execute(
+            select(DocumentExtraction).where(
+                DocumentExtraction.document_id == document_id
+            )
+        )
+    ).scalar_one_or_none()
+    if extraction is None or cast(str, extraction.status) not in ("extracted", "approved"):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Document must be extracted before approving. Run extraction first.",
+        )
+
+    # Persist approval
+    approved: dict[str, object] = {
+        "vacation_days": body.vacation_days,
+        "sick_days": body.sick_days,
+        "pto_days": body.pto_days,
+        "notes": body.notes,
+    }
+    extraction.approved_data = json.dumps(approved)  # type: ignore[assignment]
+    extraction.status = "approved"  # type: ignore[assignment]
+    extraction.reviewed_by = cast(int, admin.id)  # type: ignore[assignment]
+    extraction.reviewed_at = datetime.now(UTC)  # type: ignore[assignment]
+
+    # Apply policy to all employees in the document's department
+    department = cast(str, doc.department)
+    leave_map = {
+        "vacation": body.vacation_days,
+        "sick": body.sick_days,
+        "pto": body.pto_days,
+    }
+
+    employees = (
+        (
+            await db.execute(
+                select(Employee).where(Employee.department == department)
+            )
+        )
+        .scalars()
+        .all()
+    )
+
+    updated = 0
+    for emp in employees:
+        for leave_type, total_days in leave_map.items():
+            if total_days is None:
+                continue
+            balance = (
+                await db.execute(
+                    select(VacationBalance).where(
+                        VacationBalance.employee_id == emp.id,
+                        VacationBalance.leave_type == leave_type,
+                        VacationBalance.year == body.year,
+                    )
+                )
+            ).scalar_one_or_none()
+
+            if balance is not None:
+                balance.total_days = total_days
+            else:
+                db.add(
+                    VacationBalance(
+                        employee_id=cast(int, emp.id),
+                        leave_type=leave_type,
+                        total_days=total_days,
+                        used_days=0.0,
+                        year=body.year,
+                    )
+                )
+        updated += 1
+
+    await db.commit()
+
+    return ApproveExtractionResponse(
+        extraction_id=cast(int, extraction.id),
+        document_id=document_id,
+        department=department,
+        year=body.year,
+        employees_updated=updated,
+    )
+
+
+@router.get(
+    "/departments/policies",
+    response_model=DepartmentPoliciesResponse,
+    summary="Latest approved HR policy per department",
+)
+async def get_department_policies(
+    db: AsyncSession = Depends(get_session),  # noqa: B008
+    _admin: Employee = Depends(require_admin),  # noqa: B008
+) -> DepartmentPoliciesResponse:
+    # Latest approved extraction per department (one row per dept)
+    rows = (
+        await db.execute(
+            select(DocumentExtraction, Document.department)
+            .join(Document, Document.id == DocumentExtraction.document_id)
+            .where(DocumentExtraction.status == "approved")
+            .order_by(
+                Document.department,
+                DocumentExtraction.reviewed_at.desc(),
+            )
+        )
+    ).all()
+
+    # Keep only the most-recent approved extraction per department
+    seen: set[str] = set()
+    policies: list[DepartmentPolicyItem] = []
+    for row in rows:
+        dept = cast(str, row.department)
+        if dept in seen:
+            continue
+        seen.add(dept)
+        ext = row.DocumentExtraction
+        data: dict[str, object] = json.loads(cast(str, ext.approved_data)) if ext.approved_data else {}
+
+        def _f(v: object) -> float | None:
+            try:
+                return float(v) if v is not None else None  # type: ignore[arg-type]
+            except (TypeError, ValueError):
+                return None
+
+        policies.append(
+            DepartmentPolicyItem(
+                department=dept,
+                document_id=cast(int, ext.document_id),
+                vacation_days=_f(data.get("vacation_days")),
+                sick_days=_f(data.get("sick_days")),
+                pto_days=_f(data.get("pto_days")),
+                notes=str(data.get("notes", "")),
+                approved_at=cast(datetime, ext.reviewed_at),
+            )
+        )
+
+    return DepartmentPoliciesResponse(policies=policies)
+
+
+@router.get(
+    "/departments/balances",
+    response_model=DepartmentBalancesResponse,
+    summary="Current vacation balances aggregated per department",
+)
+async def get_department_balances(
+    year: int | None = None,
+    db: AsyncSession = Depends(get_session),  # noqa: B008
+    _admin: Employee = Depends(require_admin),  # noqa: B008
+) -> DepartmentBalancesResponse:
+    from datetime import date as _date
+    target_year = year or _date.today().year
+
+    # Only include departments that have at least one approved document extraction
+    approved_depts_sq = (
+        select(Document.department.distinct())
+        .join(DocumentExtraction, DocumentExtraction.document_id == Document.id)
+        .where(DocumentExtraction.status == "approved")
+        .scalar_subquery()
+    )
+
+    # One row per (department, leave_type) with the total_days for that group
+    rows = (
+        await db.execute(
+            select(
+                Employee.department,
+                VacationBalance.leave_type,
+                func.max(VacationBalance.total_days).label("total_days"),
+                func.count(Employee.id.distinct()).label("employee_count"),
+            )
+            .join(VacationBalance, VacationBalance.employee_id == Employee.id)
+            .where(
+                VacationBalance.year == target_year,
+                Employee.department.in_(approved_depts_sq),
+            )
+            .group_by(Employee.department, VacationBalance.leave_type)
+            .order_by(Employee.department, VacationBalance.leave_type)
+        )
+    ).all()
+
+    # Pivot into one DepartmentBalanceItem per department
+    dept_map: dict[str, dict[str, object]] = {}
+    for row in rows:
+        dept = cast(str, row.department)
+        if dept not in dept_map:
+            dept_map[dept] = {"employee_count": row.employee_count}
+        dept_map[dept][cast(str, row.leave_type)] = row.total_days
+
+    departments = [
+        DepartmentBalanceItem(
+            department=dept,
+            employee_count=cast(int, vals.get("employee_count", 0)),
+            vacation_days=cast(float | None, vals.get("vacation")),
+            sick_days=cast(float | None, vals.get("sick")),
+            pto_days=cast(float | None, vals.get("pto")),
+        )
+        for dept, vals in sorted(dept_map.items())
+    ]
+
+    return DepartmentBalancesResponse(year=target_year, departments=departments)

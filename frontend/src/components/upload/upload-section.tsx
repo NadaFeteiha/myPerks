@@ -61,7 +61,7 @@ export function UploadSection({ onUploadComplete }: UploadSectionProps) {
           const res = await fetch("/api/backend/upload/callback", {
             body: JSON.stringify({
               department,
-              files: [{ key: f.key, name: f.name, size: f.size, url: f.url }],
+              files: [{ key: f.key, name: f.name, size: f.size, url: f.ufsUrl ?? f.url }],
             }),
             headers: {
               Authorization: `Bearer ${token}`,

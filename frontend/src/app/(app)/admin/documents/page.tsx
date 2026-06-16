@@ -8,6 +8,7 @@ import { useApi } from "@/lib/api.client";
 
 type Document = {
   department: string;
+  extraction_status: null | string;
   filename: string;
   id: number;
   uploaded_at: string;

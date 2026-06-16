@@ -3,7 +3,7 @@
 from datetime import date, datetime
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 DEPARTMENT_VALUES = Literal[
     "engineering", "sales", "marketing", "hr", "finance", "operations", "other"
@@ -123,3 +123,66 @@ class PaginatedRequests(BaseModel):
     page: int
     size: int
     pages: int
+
+
+# ── Document extraction schemas ──────────────────────────────────────────────
+
+
+class ExtractionData(BaseModel):
+    vacation_days: float | None = None
+    sick_days: float | None = None
+    pto_days: float | None = None
+    notes: str = ""
+
+
+class DocumentExtractionResponse(BaseModel):
+    id: int
+    document_id: int
+    status: str
+    extracted_data: ExtractionData | None = None
+    approved_data: ExtractionData | None = None
+    reviewed_at: datetime | None = None
+    error_message: str | None = None
+
+
+class ApproveExtractionBody(BaseModel):
+    vacation_days: float | None = Field(None, ge=0)
+    sick_days: float | None = Field(None, ge=0)
+    pto_days: float | None = Field(None, ge=0)
+    notes: str = ""
+    year: int = Field(..., ge=2000, le=2100)
+
+
+class ApproveExtractionResponse(BaseModel):
+    extraction_id: int
+    document_id: int
+    department: str
+    year: int
+    employees_updated: int
+
+
+class DepartmentPolicyItem(BaseModel):
+    department: str
+    document_id: int
+    vacation_days: float | None
+    sick_days: float | None
+    pto_days: float | None
+    notes: str
+    approved_at: datetime
+
+
+class DepartmentPoliciesResponse(BaseModel):
+    policies: list[DepartmentPolicyItem]
+
+
+class DepartmentBalanceItem(BaseModel):
+    department: str
+    employee_count: int
+    vacation_days: float | None
+    sick_days: float | None
+    pto_days: float | None
+
+
+class DepartmentBalancesResponse(BaseModel):
+    year: int
+    departments: list[DepartmentBalanceItem]

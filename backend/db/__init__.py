@@ -8,6 +8,7 @@ from .models import (  # noqa: F401
     Conversation,
     Document,
     DocumentChunk,
+    DocumentExtraction,
     Employee,
     Message,
     RequestHistory,
@@ -16,11 +17,12 @@ from .models import (  # noqa: F401
 
 __all__ = [
     "Base",
-    "Employee",
-    "VacationBalance",
-    "RequestHistory",
+    "Conversation",
     "Document",
     "DocumentChunk",
-    "Conversation",
+    "DocumentExtraction",
+    "Employee",
     "Message",
+    "RequestHistory",
+    "VacationBalance",
 ]

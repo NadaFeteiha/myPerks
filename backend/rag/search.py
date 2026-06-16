@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from langchain_ollama import OllamaEmbeddings
 from langchain_openai import OpenAIEmbeddings
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,11 +20,18 @@ from db import Document, DocumentChunk
 from rag.ingest import EMBEDDING_MODEL
 from settings import settings
 
-_embeddings = OpenAIEmbeddings(  # type: ignore[call-arg]
-    model=EMBEDDING_MODEL,
-    api_key=settings.openai_api_key,
-    max_retries=3,
-)
+
+def _get_embeddings() -> OllamaEmbeddings | OpenAIEmbeddings:
+    if settings.ai_backend == "ollama":
+        return OllamaEmbeddings(
+            model=settings.ollama_embed_model,
+            base_url=settings.ollama_base_url,
+        )
+    return OpenAIEmbeddings(  # type: ignore[call-arg]
+        model=EMBEDDING_MODEL,
+        api_key=settings.openai_api_key,
+        max_retries=3,
+    )
 
 
 @dataclass
@@ -54,7 +62,7 @@ async def search_chunks(
     Used by the LangGraph RAG node — call this, then pass the results to the
     synthesiser as grounding context.
     """
-    query_vector = (await _embeddings.aembed_documents([query]))[0]
+    query_vector = (await _get_embeddings().aembed_documents([query]))[0]
 
     stmt = (
         select(DocumentChunk)

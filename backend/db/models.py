@@ -20,6 +20,15 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
+extraction_status_enum = Enum(
+    "pending",
+    "extracting",
+    "extracted",
+    "approved",
+    "failed",
+    name="extraction_status",
+)
+
 
 class Base(DeclarativeBase):
     pass
@@ -169,6 +178,12 @@ class Document(Base):
     chunks = relationship(
         "DocumentChunk", back_populates="document", cascade="all, delete-orphan"
     )
+    extraction = relationship(
+        "DocumentExtraction",
+        back_populates="document",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
 
     def __repr__(self) -> str:
         return f"<Document id={self.id} filename={self.filename!r}>"
@@ -188,7 +203,7 @@ class DocumentChunk(Base):
     content: Mapped[str] = mapped_column(Text, nullable=False)
     page_start: Mapped[int | None] = mapped_column(Integer, nullable=True)
     page_end: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    embedding: Mapped[list[float] | None] = mapped_column(Vector(1536), nullable=True)
+    embedding: Mapped[list[float] | None] = mapped_column(Vector(768), nullable=True)
 
     document = relationship("Document", back_populates="chunks")
 
@@ -263,4 +278,51 @@ class Message(Base):
         return (
             f"<Message id={self.id} conversation_id={self.conversation_id} "
             f"role={self.role!r}>"
+        )
+
+
+class DocumentExtraction(Base):
+    """Stores LLM-extracted HR policy data from an uploaded document.
+
+    One-to-one with Document. HR reviews the extracted fields, edits if needed,
+    then approves — which writes approved_data to VacationBalance for the dept.
+    """
+
+    __tablename__ = "document_extractions"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    document_id = Column(
+        Integer,
+        ForeignKey("documents.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+    status: Mapped[str] = mapped_column(
+        extraction_status_enum,
+        nullable=False,
+        default="pending",
+    )
+    # JSON: {vacation_days, sick_days, pto_days, notes}
+    extracted_data = Column(Text, nullable=True)
+    # JSON written on HR approval — may differ from extracted_data after edits
+    approved_data = Column(Text, nullable=True)
+    reviewed_by = Column(
+        Integer,
+        ForeignKey("employees.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    reviewed_at = Column(DateTime(timezone=True), nullable=True)
+    error_message = Column(Text, nullable=True)
+    created_at = Column(
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC)
+    )
+
+    document = relationship("Document", back_populates="extraction")
+    reviewer = relationship("Employee", foreign_keys=[reviewed_by])
+
+    def __repr__(self) -> str:
+        return (
+            f"<DocumentExtraction id={self.id} document_id={self.document_id} "
+            f"status={self.status!r}>"
         )

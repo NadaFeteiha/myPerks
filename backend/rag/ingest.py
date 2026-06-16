@@ -30,6 +30,7 @@ import hashlib
 import io
 
 import tiktoken
+from langchain_ollama import OllamaEmbeddings
 from langchain_openai import OpenAIEmbeddings
 from pypdf import PdfReader
 from sqlalchemy import select
@@ -134,16 +135,23 @@ async def ingest_pdf(
 
     chunk_data = _chunk_text(pages)
 
-    embeddings_client = OpenAIEmbeddings(  # type: ignore[call-arg]
-        model=EMBEDDING_MODEL,
-        api_key=settings.openai_api_key,
-        max_retries=3,
-    )
-
-    # aembed_documents handles batching internally.
-    vectors = await embeddings_client.aembed_documents(
-        [text for text, _, _ in chunk_data]
-    )
+    if settings.ai_backend == "ollama":
+        embeddings_client = OllamaEmbeddings(
+            model=settings.ollama_embed_model,
+            base_url=settings.ollama_base_url,
+        )
+        vectors = await embeddings_client.aembed_documents(
+            [text for text, _, _ in chunk_data]
+        )
+    else:  # openai
+        embeddings_client = OpenAIEmbeddings(  # type: ignore[call-arg]
+            model=EMBEDDING_MODEL,
+            api_key=settings.openai_api_key,
+            max_retries=3,
+        )
+        vectors = await embeddings_client.aembed_documents(
+            [text for text, _, _ in chunk_data]
+        )
 
     document = Document(
         filename=filename,

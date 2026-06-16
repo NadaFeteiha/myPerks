@@ -40,6 +40,39 @@ export interface DocumentListResponse {
   documents: DocumentItem[];
 }
 
+export interface ExtractionData {
+  notes: string;
+  pto_days: null | number;
+  sick_days: null | number;
+  vacation_days: null | number;
+}
+
+export interface DocumentExtractionResponse {
+  approved_data: ExtractionData | null;
+  document_id: number;
+  error_message: null | string;
+  extracted_data: ExtractionData | null;
+  id: number;
+  reviewed_at: null | string;
+  status: "approved" | "extracted" | "extracting" | "failed" | "pending";
+}
+
+export interface ApproveExtractionBody {
+  notes?: string;
+  pto_days?: null | number;
+  sick_days?: null | number;
+  vacation_days?: null | number;
+  year: number;
+}
+
+export interface ApproveExtractionResponse {
+  department: string;
+  document_id: number;
+  employees_updated: number;
+  extraction_id: number;
+  year: number;
+}
+
 export interface OnboardRequest {
   department?: string;
   email: string;
@@ -74,6 +107,7 @@ interface AdminBalanceSnapshot {
 
 interface DocumentItem {
   department: string;
+  extraction_status: null | string;
   filename: string;
   id: number;
   uploaded_at: string;
@@ -145,16 +179,33 @@ export function useApi() {
     }
 
     return {
+      approveExtraction: (
+        documentId: number,
+        body: ApproveExtractionBody,
+      ) =>
+        apiPost<ApproveExtractionResponse>(
+          `/admin/documents/${documentId}/extraction/approve`,
+          body,
+        ),
       approveOrRejectRequest: (requestId: number, body: ApproveRejectBody) =>
         apiPatch<ApproveRejectResponse>(`/admin/requests/${requestId}`, body),
       createRequest: (payload: CreateRequestPayload) =>
         apiPost<RequestHistoryItem>("/me/requests", payload),
       getAdminEmployeeDetail: (id: number) =>
         apiGet<AdminEmployeeDetail>(`/admin/employees/${id}`),
+      getDocumentExtraction: (documentId: number) =>
+        apiGet<DocumentExtractionResponse | null>(
+          `/admin/documents/${documentId}/extraction`,
+        ),
       getDocuments: () => apiGet<DocumentListResponse>("/upload/documents"),
       getMe: () => apiGet<OnboardResponse>("/employees/me"),
       onboard: (body: OnboardRequest) =>
         apiPost<OnboardResponse>("/employees/me", body),
+      triggerExtraction: (documentId: number) =>
+        apiPost<DocumentExtractionResponse>(
+          `/admin/documents/${documentId}/extract`,
+          {},
+        ),
     };
   }, [getToken]);
 }
