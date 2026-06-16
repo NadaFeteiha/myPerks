@@ -28,6 +28,7 @@ from api.auth import require_admin
 from db.models import Document, Employee
 from db.session import get_session
 from rag.ingest import ingest_pdf
+from db.models import department_enum
 
 logger = logging.getLogger(__name__)
 
@@ -38,15 +39,8 @@ router = APIRouter(prefix="/upload", tags=["upload"])
 _ALLOWED_CONTENT_TYPES = {"application/pdf"}
 _MAX_PDF_BYTES = 20 * 1024 * 1024  # 20 MB
 
-_VALID_DEPARTMENTS = {
-    "engineering",
-    "sales",
-    "marketing",
-    "hr",
-    "finance",
-    "operations",
-    "other",
-}
+_VALID_DEPARTMENTS = set(department_enum.enums)
+
 
 # ── Schemas ────────────────────────────────────────────────────────────────────
 
