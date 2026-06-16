@@ -2,6 +2,8 @@
 
 import { FileText } from "lucide-react";
 
+import { formatIsoDate } from "@/lib/format";
+
 type DocumentRowProps = {
   department?: string;
   filename: string;
@@ -21,7 +23,7 @@ export function DocumentRow({
           {filename}
         </p>
         <p className="mt-0.5 text-[11px] text-muted-foreground">
-          {uploaded_at}
+          {formatIsoDate(uploaded_at)}
         </p>
       </div>
       {department && (
