@@ -28,6 +28,10 @@ from typing import Any
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from langgraph.graph import END, StateGraph
 from langgraph.graph.state import CompiledStateGraph
+from sqlalchemy import select
+
+from db.models import Employee
+from db.session import AsyncSessionLocal
 
 from .nodes import (
     cancel_request_node,
@@ -146,8 +150,16 @@ async def run_agent(
             messages.append(AIMessage(content=content))
     messages.append(HumanMessage(content=question))
 
+    # Read department inside the session context to avoid DetachedInstanceError.
+    async with AsyncSessionLocal() as db:
+        employee = (
+            await db.execute(select(Employee).where(Employee.id == employee_id))
+        ).scalar_one_or_none()
+        department: str = str(employee.department) if employee else "other"
+
     initial_state: AgentState = {
         "employee_id": employee_id,
+        "department": department,
         "messages": messages,
         "intent": [],
         "rag_context": "",
