@@ -25,10 +25,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.auth import require_admin
-from db.models import Document, Employee
+from db.models import Document, Employee, department_enum
 from db.session import get_session
 from rag.ingest import ingest_pdf
-from db.models import department_enum
 
 logger = logging.getLogger(__name__)
 
