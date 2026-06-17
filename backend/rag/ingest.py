@@ -135,6 +135,7 @@ async def ingest_pdf(
 
     chunk_data = _chunk_text(pages)
 
+    embeddings_client: OllamaEmbeddings | OpenAIEmbeddings
     if settings.ai_backend == "ollama":
         embeddings_client = OllamaEmbeddings(
             model=settings.ollama_embed_model,

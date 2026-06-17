@@ -25,7 +25,9 @@ def upgrade() -> None:
     op.execute(
         """
         DO $$ BEGIN
-            IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'extraction_status') THEN
+            IF NOT EXISTS (
+                SELECT 1 FROM pg_type WHERE typname = 'extraction_status'
+            ) THEN
                 CREATE TYPE extraction_status AS ENUM
                     ('pending', 'extracting', 'extracted', 'approved', 'failed');
             END IF;

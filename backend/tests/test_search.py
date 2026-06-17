@@ -58,7 +58,7 @@ def _mock_embeddings() -> MagicMock:
 
 
 def _capture_session() -> tuple[MagicMock, list[object]]:
-    """Session that records the stmt passed to scalars(); returns (session, captured)."""
+    """Records stmt passed to scalars(); returns (session, captured)."""
     captured: list[object] = []
     session = MagicMock()
 

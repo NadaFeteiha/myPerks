@@ -17,6 +17,22 @@ export interface AdminEmployeeDetail {
   role: string;
 }
 
+export interface ApproveExtractionBody {
+  notes?: string;
+  pto_days?: null | number;
+  sick_days?: null | number;
+  vacation_days?: null | number;
+  year: number;
+}
+
+export interface ApproveExtractionResponse {
+  department: string;
+  document_id: number;
+  employees_updated: number;
+  extraction_id: number;
+  year: number;
+}
+
 export interface ApproveRejectBody {
   rejection_reason?: string;
   status: "approved" | "rejected";
@@ -36,17 +52,6 @@ export interface CreateRequestPayload {
   type: string;
 }
 
-export interface DocumentListResponse {
-  documents: DocumentItem[];
-}
-
-export interface ExtractionData {
-  notes: string;
-  pto_days: null | number;
-  sick_days: null | number;
-  vacation_days: null | number;
-}
-
 export interface DocumentExtractionResponse {
   approved_data: ExtractionData | null;
   document_id: number;
@@ -57,20 +62,15 @@ export interface DocumentExtractionResponse {
   status: "approved" | "extracted" | "extracting" | "failed" | "pending";
 }
 
-export interface ApproveExtractionBody {
-  notes?: string;
-  pto_days?: null | number;
-  sick_days?: null | number;
-  vacation_days?: null | number;
-  year: number;
+export interface DocumentListResponse {
+  documents: DocumentItem[];
 }
 
-export interface ApproveExtractionResponse {
-  department: string;
-  document_id: number;
-  employees_updated: number;
-  extraction_id: number;
-  year: number;
+export interface ExtractionData {
+  notes: string;
+  pto_days: null | number;
+  sick_days: null | number;
+  vacation_days: null | number;
 }
 
 export interface OnboardRequest {
@@ -179,10 +179,7 @@ export function useApi() {
     }
 
     return {
-      approveExtraction: (
-        documentId: number,
-        body: ApproveExtractionBody,
-      ) =>
+      approveExtraction: (documentId: number, body: ApproveExtractionBody) =>
         apiPost<ApproveExtractionResponse>(
           `/admin/documents/${documentId}/extraction/approve`,
           body,

@@ -30,7 +30,7 @@ Extract the following information and return it as valid JSON with these exact k
   - vacation_days: annual vacation days (number, null if not found)
   - sick_days: annual sick/illness leave days (number, null if not found)
   - pto_days: annual PTO or personal days (number, null if not found)
-  - notes: a concise plain-text summary of other relevant HR policies (string, max 300 chars)
+  - notes: a plain-text summary of other relevant HR policies (string, max 300 chars)
 
 Return ONLY the JSON object, no other text.
 Example: {"vacation_days": 15, "sick_days": 10, "pto_days": 5, "notes": "..."}
@@ -49,23 +49,19 @@ async def extract_document_policy(
     or 'failed' on error. Caller must commit.
     """
     extraction = await session.scalar(
-        select(DocumentExtraction).where(
-            DocumentExtraction.document_id == document_id
-        )
+        select(DocumentExtraction).where(DocumentExtraction.document_id == document_id)
     )
     if extraction is None:
         extraction = DocumentExtraction(document_id=document_id, status="extracting")
         session.add(extraction)
     else:
-        extraction.status = "extracting"  # type: ignore[assignment]
+        extraction.status = "extracting"
         extraction.error_message = None  # type: ignore[assignment]
 
     await session.flush()
 
     try:
-        doc = await session.scalar(
-            select(Document).where(Document.id == document_id)
-        )
+        doc = await session.scalar(select(Document).where(Document.id == document_id))
         if doc is None:
             raise ValueError(f"Document {document_id} not found")
 
@@ -92,8 +88,16 @@ async def extract_document_policy(
                 base_url=settings.ollama_base_url,
                 temperature=0,
             )
+        elif settings.ai_backend == "groq":
+            llm = ChatOpenAI(
+                model=settings.groq_chat_model,
+                api_key=settings.groq_api_key.get_secret_value(),
+                base_url="https://api.groq.com/openai/v1",
+                temperature=0,
+                max_retries=2,
+            )
         else:  # openai
-            llm = ChatOpenAI(  # type: ignore[call-arg]
+            llm = ChatOpenAI(
                 model="gpt-4o-mini",
                 api_key=settings.openai_api_key,
                 temperature=0,
@@ -119,7 +123,7 @@ async def extract_document_policy(
             if start >= 0 and end > start:
                 parsed = json.loads(raw[start:end])
             else:
-                raise ValueError(f"LLM returned non-JSON: {raw[:200]}")
+                raise ValueError(f"LLM returned non-JSON: {raw[:200]}") from None
 
         def _float_or_none(v: object) -> float | None:
             try:
@@ -135,12 +139,12 @@ async def extract_document_policy(
         }
 
         extraction.extracted_data = json.dumps(extracted)  # type: ignore[assignment]
-        extraction.status = "extracted"  # type: ignore[assignment]
+        extraction.status = "extracted"
         logger.info("Extraction complete document_id=%d", document_id)
 
     except Exception as exc:
         logger.exception("Extraction failed for document_id=%d: %s", document_id, exc)
-        extraction.status = "failed"  # type: ignore[assignment]
+        extraction.status = "failed"
         extraction.error_message = str(exc)[:500]  # type: ignore[assignment]
 
     await session.flush()

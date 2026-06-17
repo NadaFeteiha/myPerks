@@ -532,13 +532,20 @@ async def request_node(state: AgentState) -> dict[str, Any]:
                 break
             except Exception as exc:
                 last_exc = exc
-                logger.warning("Request extraction attempt %d failed: %s", _attempt + 1, exc)
+                logger.warning(
+                    "Request extraction attempt %d failed: %s", _attempt + 1, exc
+                )
         if result is None:
             raise last_exc or RuntimeError("Request extraction failed after retries")
 
-        logger.info("Request extraction: type=%s is_complete=%s clarification=%r start=%s days=%s",
-                    result.type, result.is_complete, result.clarification_question,
-                    result.body.start_date, result.body.requested_days)
+        logger.info(
+            "Request extraction: type=%s is_complete=%s clarification=%r start=%s days=%s",
+            result.type,
+            result.is_complete,
+            result.clarification_question,
+            result.body.start_date,
+            result.body.requested_days,
+        )
 
         if not result.is_complete:
             return {
@@ -822,7 +829,7 @@ async def responder_node(state: AgentState) -> dict[str, Any]:
         # request_node failed to extract details — ask for start date directly
         prompt = (
             "You are MyPerks, a friendly HR assistant. "
-            f"The employee said: \"{question}\". "
+            f'The employee said: "{question}". '
             "They want to submit a leave request. Ask them in one short sentence: "
             "when would they like their leave to start?"
         )

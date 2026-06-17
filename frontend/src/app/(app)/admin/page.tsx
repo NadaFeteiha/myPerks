@@ -2,6 +2,7 @@ import { ClipboardCheck, FileText, Users } from "lucide-react";
 import Link from "next/link";
 
 import type { DepartmentBalanceItem } from "@/lib/api.server";
+
 import { api } from "@/lib/api.server";
 
 export const metadata = {
@@ -37,7 +38,8 @@ export default async function AdminHomePage() {
         <div>
           <h1 className="text-xl font-semibold">HR Dashboard</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Overview of employees, pending requests, and department leave balances.
+            Overview of employees, pending requests, and department leave
+            balances.
           </p>
         </div>
 
@@ -82,12 +84,13 @@ export default async function AdminHomePage() {
                     Department Leave Balances
                   </h2>
                   <p className="text-[11px] text-muted-foreground">
-                    Current policy totals from <code>vacation_balances</code> — year {balanceYear}
+                    Current policy totals from <code>vacation_balances</code> —
+                    year {balanceYear}
                   </p>
                 </div>
                 <Link
-                  href="/admin/documents"
                   className="text-[12px] font-medium text-brand-purple-600 hover:underline dark:text-brand-purple-400"
+                  href="/admin/documents"
                 >
                   Manage documents →
                 </Link>
@@ -100,11 +103,12 @@ export default async function AdminHomePage() {
                     No leave balances found for {balanceYear}
                   </p>
                   <p className="mt-1 text-[12px] text-muted-foreground">
-                    Upload and approve HR policy documents to set department balances.
+                    Upload and approve HR policy documents to set department
+                    balances.
                   </p>
                   <Link
-                    href="/admin/documents"
                     className="mt-3 inline-block text-[12px] font-medium text-brand-purple-600 hover:underline dark:text-brand-purple-400"
+                    href="/admin/documents"
                   >
                     Go to Documents →
                   </Link>
@@ -112,13 +116,60 @@ export default async function AdminHomePage() {
               ) : (
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   {departments.map((d) => (
-                    <DepartmentBalanceCard key={d.department} item={d} />
+                    <DepartmentBalanceCard item={d} key={d.department} />
                   ))}
                 </div>
               )}
             </section>
           </>
         )}
+      </div>
+    </div>
+  );
+}
+
+function DepartmentBalanceCard({ item }: { item: DepartmentBalanceItem }) {
+  const rows: { label: string; value: null | number }[] = [
+    { label: "Vacation", value: item.vacation_days },
+    { label: "Sick leave", value: item.sick_days },
+    { label: "PTO", value: item.pto_days },
+  ];
+
+  return (
+    <div className="rounded-xl border border-border bg-white p-4 dark:bg-card">
+      <div className="mb-3 flex items-center justify-between">
+        <span className="text-[12px] font-semibold capitalize text-foreground">
+          {item.department}
+        </span>
+        <span className="text-[10px] text-muted-foreground">
+          {item.employee_count}{" "}
+          {item.employee_count === 1 ? "employee" : "employees"}
+        </span>
+      </div>
+
+      <div className="space-y-2">
+        {rows.map(({ label, value }) => (
+          <div className="flex items-center justify-between" key={label}>
+            <span className="text-[12px] text-muted-foreground">{label}</span>
+            {value !== null && value !== undefined ? (
+              <span className="text-[13px] font-semibold text-foreground">
+                {value}{" "}
+                <span className="font-normal text-muted-foreground">days</span>
+              </span>
+            ) : (
+              <span className="text-[12px] text-muted-foreground">—</span>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-3 border-t border-border pt-3">
+        <Link
+          className="text-[11px] font-medium text-brand-purple-600 hover:underline dark:text-brand-purple-400"
+          href="/admin/documents"
+        >
+          Update policy →
+        </Link>
       </div>
     </div>
   );
@@ -157,51 +208,5 @@ function StatCard({
         {linkLabel} →
       </p>
     </Link>
-  );
-}
-
-function DepartmentBalanceCard({ item }: { item: DepartmentBalanceItem }) {
-  const rows: { label: string; value: null | number }[] = [
-    { label: "Vacation", value: item.vacation_days },
-    { label: "Sick leave", value: item.sick_days },
-    { label: "PTO", value: item.pto_days },
-  ];
-
-  return (
-    <div className="rounded-xl border border-border bg-white p-4 dark:bg-card">
-      <div className="mb-3 flex items-center justify-between">
-        <span className="text-[12px] font-semibold capitalize text-foreground">
-          {item.department}
-        </span>
-        <span className="text-[10px] text-muted-foreground">
-          {item.employee_count} {item.employee_count === 1 ? "employee" : "employees"}
-        </span>
-      </div>
-
-      <div className="space-y-2">
-        {rows.map(({ label, value }) => (
-          <div key={label} className="flex items-center justify-between">
-            <span className="text-[12px] text-muted-foreground">{label}</span>
-            {value !== null && value !== undefined ? (
-              <span className="text-[13px] font-semibold text-foreground">
-                {value}{" "}
-                <span className="font-normal text-muted-foreground">days</span>
-              </span>
-            ) : (
-              <span className="text-[12px] text-muted-foreground">—</span>
-            )}
-          </div>
-        ))}
-      </div>
-
-      <div className="mt-3 border-t border-border pt-3">
-        <Link
-          href="/admin/documents"
-          className="text-[11px] font-medium text-brand-purple-600 hover:underline dark:text-brand-purple-400"
-        >
-          Update policy →
-        </Link>
-      </div>
-    </div>
   );
 }

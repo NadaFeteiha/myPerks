@@ -34,6 +34,9 @@ def _get_embeddings() -> OllamaEmbeddings | OpenAIEmbeddings:
     )
 
 
+_embeddings: OllamaEmbeddings | OpenAIEmbeddings = _get_embeddings()
+
+
 @dataclass
 class ChunkResult:
     chunk_id: int
@@ -62,7 +65,7 @@ async def search_chunks(
     Used by the LangGraph RAG node — call this, then pass the results to the
     synthesiser as grounding context.
     """
-    query_vector = (await _get_embeddings().aembed_documents([query]))[0]
+    query_vector = (await _embeddings.aembed_documents([query]))[0]
 
     stmt = (
         select(DocumentChunk)
