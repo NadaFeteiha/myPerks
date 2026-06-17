@@ -66,9 +66,9 @@ export function ConfirmDialog({
           {title}
         </h2>
         {description && (
-          <p className="mt-2 text-[13px] text-muted-foreground">
+          <div className="mt-2 text-[13px] text-muted-foreground">
             {description}
-          </p>
+          </div>
         )}
 
         <div className="mt-5 flex justify-end gap-2">

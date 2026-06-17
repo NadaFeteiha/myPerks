@@ -301,8 +301,8 @@ export default function DocumentReviewPage() {
                 </label>
                 <input
                   type="number"
-                  min={2000}
-                  max={2100}
+                  min={CURRENT_YEAR}
+                  max={CURRENT_YEAR + 1}
                   value={form.year}
                   onChange={(e) =>
                     setForm((prev) => ({
