@@ -1,4 +1,3 @@
-# backend/api/routers/admin.py
 """
 Single admin endpoint: approve or reject an employee HR request.
 Behind require_admin — only HR admins may call this.
@@ -38,6 +37,11 @@ from db.models import Employee, RequestHistory, VacationBalance
 from db.session import get_session
 
 router = APIRouter(prefix="/admin", tags=["admin"])
+
+# Fallback balances when HR omits a leave type at pre-create. Mirrors what the
+# old self-onboard path (register_me) seeded, so pre-created and self-created
+# employees start from the same place.
+DEFAULT_BALANCES: dict[str, float] = {"vacation": 15.0, "sick": 10.0, "pto": 5.0}
 
 
 @router.get(
@@ -195,6 +199,28 @@ async def pre_create_employee(
         benefits_year_reset=body.benefits_year_reset,
     )
     db.add(emp)
+    await db.flush()  # assign emp.id before seeding balances
+
+    # Merge any provided totals over the defaults so every employee always gets
+    # a full set of current-year rows. used_days always starts at 0 — it only
+    # moves later through the approve/reject flow.
+    totals = dict(DEFAULT_BALANCES)
+    if body.balances:
+        for item in body.balances:
+            totals[item.leave_type] = item.total_days
+
+    current_year = datetime.now(UTC).year
+    for leave_type, total in totals.items():
+        db.add(
+            VacationBalance(
+                employee_id=emp.id,
+                leave_type=leave_type,
+                total_days=total,
+                used_days=0.0,
+                year=current_year,
+            )
+        )
+
     await db.commit()
     await db.refresh(emp)
 
@@ -207,6 +233,15 @@ async def pre_create_employee(
         joined_date=emp.joined_date,
         benefits_year_reset=emp.benefits_year_reset,
         linked=False,
+        balances=[
+            BalanceSnapshot(
+                leave_type=lt,
+                total_days=total,
+                used_days=0.0,
+                remaining_days=total,
+            )
+            for lt, total in totals.items()
+        ],
     )
 
 
@@ -222,7 +257,11 @@ async def patch_employee(
     _admin: Employee = Depends(require_admin),  # noqa: B008
 ) -> PatchEmployeeResponse:
     emp = (
-        await db.execute(select(Employee).where(Employee.id == employee_id))
+        await db.execute(
+            select(Employee)
+            .options(selectinload(Employee.vacation_balances))
+            .where(Employee.id == employee_id)
+        )
     ).scalar_one_or_none()
 
     if emp is None:
@@ -236,7 +275,41 @@ async def patch_employee(
     if body.role is not None:
         emp.role = body.role
 
+    current_year = datetime.now(UTC).year
+    if body.balances:
+        # Update-only: rows are guaranteed to exist (employees are pre-created
+        # with a full set). A missing row means a real bug, so fail loudly with
+        # a 404 rather than silently no-op.
+        by_type = {
+            b.leave_type: b for b in emp.vacation_balances if b.year == current_year
+        }
+        for item in body.balances:
+            row = by_type.get(item.leave_type)
+            if row is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=(
+                        f"No {item.leave_type} balance for {current_year} "
+                        f"on employee {employee_id}"
+                    ),
+                )
+            row.total_days = item.total_days
+
     await db.commit()
+
+    # Snapshot before refresh — refresh may expire the relationship, and a lazy
+    # reload would fail under async.
+    balances_snapshot = [
+        BalanceSnapshot(
+            leave_type=b.leave_type,
+            total_days=b.total_days,
+            used_days=b.used_days,
+            remaining_days=b.remaining_days,
+        )
+        for b in emp.vacation_balances
+        if b.year == current_year
+    ]
+
     await db.refresh(emp)
 
     return PatchEmployeeResponse(
@@ -248,6 +321,7 @@ async def patch_employee(
         joined_date=emp.joined_date,
         benefits_year_reset=emp.benefits_year_reset,
         linked=emp.clerk_user_id is not None,
+        balances=balances_snapshot,
     )
 
 
