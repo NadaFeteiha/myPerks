@@ -30,7 +30,6 @@ import hashlib
 import io
 
 import tiktoken
-from langchain_ollama import OllamaEmbeddings
 from langchain_openai import OpenAIEmbeddings
 from pypdf import PdfReader
 from sqlalchemy import select
@@ -135,21 +134,12 @@ async def ingest_pdf(
 
     chunk_data = _chunk_text(pages)
 
-    embeddings_client: OllamaEmbeddings | OpenAIEmbeddings
-    # Groq provides chat-only APIs — no embedding endpoint. Fall back to Ollama
-    # for embeddings whenever the backend isn't explicitly "openai".
-    if settings.ai_backend == "openai":
-        embeddings_client = OpenAIEmbeddings(  # type: ignore[call-arg]
-            model=EMBEDDING_MODEL,
-            api_key=settings.openai_api_key,
-            dimensions=768,  # match Vector(768) in DocumentChunk
-            max_retries=3,
-        )
-    else:  # "ollama" or "groq" — both use local Ollama for embeddings
-        embeddings_client = OllamaEmbeddings(
-            model=settings.ollama_embed_model,
-            base_url=settings.ollama_base_url,
-        )
+    embeddings_client = OpenAIEmbeddings(  # type: ignore[call-arg]
+        model=EMBEDDING_MODEL,
+        api_key=settings.openai_api_key,
+        dimensions=1536,  # match Vector(1536) in DocumentChunk
+        max_retries=3,
+    )
     vectors = await embeddings_client.aembed_documents(
         [text for text, _, _ in chunk_data]
     )

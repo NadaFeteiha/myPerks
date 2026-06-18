@@ -18,7 +18,6 @@ from typing import Any, Literal, cast
 
 import holidays as _holidays
 from langchain_core.messages import AIMessage, SystemMessage
-from langchain_ollama import ChatOllama
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
 from sqlalchemy import select
@@ -189,24 +188,10 @@ async def _find_leave_conflict(
 # LLM and embedding model instances
 # ---------------------------------------------------------------------------
 
-if settings.ai_backend == "ollama":
-    _llm: ChatOllama | ChatOpenAI = ChatOllama(
-        model=settings.ollama_chat_model,
-        base_url=settings.ollama_base_url,
-        temperature=0,
-    )
-elif settings.ai_backend == "groq":
-    _llm = ChatOpenAI(
-        model=settings.groq_chat_model,
-        api_key=settings.groq_api_key.get_secret_value(),
-        base_url="https://api.groq.com/openai/v1",
-        temperature=0,
-    )
-else:  # openai
-    _llm = ChatOpenAI(
-        model="gpt-4o",
-        api_key=settings.openai_api_key,
-    )
+_llm = ChatOpenAI(
+    model="gpt-4o",
+    api_key=settings.openai_api_key,
+)
 
 # ---------------------------------------------------------------------------
 # System prompts

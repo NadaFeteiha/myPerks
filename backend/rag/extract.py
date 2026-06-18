@@ -14,7 +14,6 @@ from __future__ import annotations
 import json
 import logging
 
-from langchain_ollama import ChatOllama
 from langchain_openai import ChatOpenAI
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -82,27 +81,12 @@ async def extract_document_policy(
 
         combined_text = "\n\n".join(c.content for c in chunks)[:8000]
 
-        if settings.ai_backend == "ollama":
-            llm: ChatOllama | ChatOpenAI = ChatOllama(
-                model=settings.ollama_chat_model,
-                base_url=settings.ollama_base_url,
-                temperature=0,
-            )
-        elif settings.ai_backend == "groq":
-            llm = ChatOpenAI(
-                model=settings.groq_chat_model,
-                api_key=settings.groq_api_key.get_secret_value(),
-                base_url="https://api.groq.com/openai/v1",
-                temperature=0,
-                max_retries=2,
-            )
-        else:  # openai
-            llm = ChatOpenAI(
-                model="gpt-4o-mini",
-                api_key=settings.openai_api_key,
-                temperature=0,
-                max_retries=2,
-            )
+        llm = ChatOpenAI(
+            model="gpt-4o-mini",
+            api_key=settings.openai_api_key,
+            temperature=0,
+            max_retries=2,
+        )
 
         messages = [
             {"role": "system", "content": _SYSTEM_PROMPT},

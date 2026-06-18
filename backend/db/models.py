@@ -203,7 +203,7 @@ class DocumentChunk(Base):
     content: Mapped[str] = mapped_column(Text, nullable=False)
     page_start: Mapped[int | None] = mapped_column(Integer, nullable=True)
     page_end: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    embedding: Mapped[list[float] | None] = mapped_column(Vector(768), nullable=True)
+    embedding: Mapped[list[float] | None] = mapped_column(Vector(1536), nullable=True)
 
     document = relationship("Document", back_populates="chunks")
 

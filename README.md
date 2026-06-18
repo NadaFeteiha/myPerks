@@ -1,7 +1,7 @@
 # MyPerks
 
 > AI-Powered Employee Benefits & HR Assistant  
-> Stack: Next.js 16 · FastAPI · LangGraph · RAG · PostgreSQL + pgvector · Ollama
+> Stack: Next.js 16 · FastAPI · LangGraph · RAG · PostgreSQL + pgvector · OpenAI
 
 ---
 
@@ -45,8 +45,8 @@ Employees ask questions in plain language and get instant, accurate answers grou
 3. Synthesizer node — writes grounded answer from gathered context
 
 **Document extraction pipeline:**
-1. HR uploads PDF → chunked + embedded by `nomic-embed-text` via Ollama
-2. HR clicks "Extract Policy" → `llama3.2` reads chunks, returns structured JSON
+1. HR uploads PDF → chunked + embedded by OpenAI `text-embedding-3-small`
+2. HR clicks "Extract Policy" → `gpt-4o-mini` reads chunks, returns structured JSON
 3. HR reviews / edits values in the UI → clicks Approve
 4. Backend writes `VacationBalance` rows for every employee in the department
 
@@ -80,7 +80,7 @@ myperks/
 - Node 20+
 - Python 3.12+
 - PostgreSQL 17 with pgvector extension
-- [Ollama](https://ollama.com) (for local AI — free, no API key needed)
+- An [OpenAI API key](https://platform.openai.com/api-keys)
 
 ### 1. Clone and install
 
@@ -95,17 +95,9 @@ cd ../backend
 python -m venv .venv
 source .venv/bin/activate       # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-pip install langchain-ollama    # Ollama integration
 ```
 
-### 2. Pull Ollama models
-
-```bash
-ollama pull nomic-embed-text    # embeddings (768 dims)
-ollama pull llama3.2            # policy extraction LLM
-```
-
-### 3. Set up the database
+### 2. Set up the database
 
 ```bash
 # Enable pgvector (run once in psql)
@@ -119,7 +111,7 @@ alembic upgrade head
 python -m db.seed
 ```
 
-### 4. Configure environment
+### 3. Configure environment
 
 Copy and fill in your values:
 
@@ -134,50 +126,23 @@ Key backend variables:
 DATABASE_URL=postgresql+asyncpg://...
 CLERK_ISSUER=https://...
 CLERK_JWKS_URL=https://.../.well-known/jwks.json
-
-# Pick one AI backend:
-AI_BACKEND=ollama        # local Ollama — no API key needed (default)
-# AI_BACKEND=openai      # OpenAI API — add OPENAI_API_KEY below
-
-# Required only when AI_BACKEND=openai:
-# OPENAI_API_KEY=sk-...
+OPENAI_API_KEY=sk-...
 ```
 
-### 5. Run
+### 4. Run
 
 ```bash
-# Terminal 1 — Ollama server
-ollama serve
-
-# Terminal 2 — backend
+# Terminal 1 — backend
 cd backend
 uvicorn main:app --reload --port 8000
 
-# Terminal 3 — frontend
+# Terminal 2 — frontend
 cd frontend
 npm run dev
 ```
 
 - Frontend: http://localhost:3000
 - API docs: http://localhost:8000/docs
-
----
-
-## AI backend modes
-
-Set one line in `backend/.env` to switch:
-
-```env
-AI_BACKEND=ollama    # default — local, no API key needed
-AI_BACKEND=openai    # cloud — requires OPENAI_API_KEY
-```
-
-| Mode | Embeddings | LLM | Cost |
-|------|------------|-----|------|
-| `ollama` | `nomic-embed-text` (768 dims, local) | `llama3.2` (local) | Free |
-| `openai` | `text-embedding-3-small` (1536 dims) | `gpt-4o-mini` | ~$0.002 / 1k tokens |
-
-> **Switching between `ollama` and `openai` requires re-uploading documents** — the vector dimensions differ (768 vs 1536) so existing embeddings are incompatible.
 
 ---
 
@@ -191,10 +156,8 @@ AI_BACKEND=openai    # cloud — requires OPENAI_API_KEY
 | Streaming | Server-Sent Events (SSE) |
 | Backend | FastAPI, Python 3.13 |
 | AI orchestration | LangGraph + LangChain |
-| LLM (local) | Ollama — llama3.2 |
-| LLM (cloud) | OpenAI gpt-4o-mini |
-| Embeddings (local) | Ollama — nomic-embed-text (768 dims) |
-| Embeddings (cloud) | OpenAI text-embedding-3-small (1536 dims) |
+| LLM | OpenAI gpt-4o / gpt-4o-mini |
+| Embeddings | OpenAI text-embedding-3-small (1536 dims) |
 | Vector store | pgvector (PostgreSQL extension) |
 | Database | PostgreSQL 17 |
 | Migrations | Alembic |
@@ -207,7 +170,7 @@ AI_BACKEND=openai    # cloud — requires OPENAI_API_KEY
 |-------|---------|
 | `employees` | Users with role (`employee` \| `hr_admin`) and department |
 | `documents` | Uploaded PDFs scoped to a department |
-| `document_chunks` | PDF text chunks with 768-dim embeddings |
+| `document_chunks` | PDF text chunks with 1536-dim embeddings |
 | `document_extractions` | LLM-extracted HR policy data, review status, approved values |
 | `vacation_balances` | Per-employee, per-year leave balances (vacation / sick / PTO) |
 | `request_histories` | Leave requests with approval status |
@@ -221,14 +184,14 @@ AI_BACKEND=openai    # cloud — requires OPENAI_API_KEY
 Upload PDF
     │
     ▼
-ingest_pdf()  ──  chunk text  ──  embed with nomic-embed-text  ──  store in pgvector
+ingest_pdf()  ──  chunk text  ──  embed with text-embedding-3-small  ──  store in pgvector
     │
     ▼
 HR clicks "Review" on the document list
     │
     ▼
 POST /admin/documents/{id}/extract
-    ├── llama3.2 reads chunks
+    ├── gpt-4o-mini reads chunks
     └── returns { vacation_days, sick_days, pto_days, notes }
     │
     ▼
