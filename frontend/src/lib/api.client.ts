@@ -30,6 +30,7 @@ export interface ApproveExtractionResponse {
   document_id: number;
   employees_updated: number;
   extraction_id: number;
+  warning: null | string;
   year: number;
 }
 

@@ -159,6 +159,7 @@ class ApproveExtractionResponse(BaseModel):
     department: str
     year: int
     employees_updated: int
+    warning: str | None = None
 
 
 class DepartmentPolicyItem(BaseModel):

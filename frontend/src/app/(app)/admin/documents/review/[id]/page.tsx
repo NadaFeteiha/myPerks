@@ -332,6 +332,12 @@ export default function DocumentReviewPage() {
               </div>
             )}
 
+            {success?.warning && (
+              <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-[12px] text-amber-700 dark:border-amber-900 dark:bg-amber-900/20 dark:text-amber-400">
+                {success.warning}
+              </p>
+            )}
+
             <button
               className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand-purple-600 py-2.5 text-[13px] font-semibold text-white hover:bg-brand-purple-700 disabled:cursor-not-allowed disabled:opacity-50"
               disabled={!canSubmit}

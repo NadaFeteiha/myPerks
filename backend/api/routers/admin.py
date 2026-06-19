@@ -634,6 +634,9 @@ async def approve_extraction(
             balance = existing_balances.get(key)
             if balance is not None:
                 balance.total_days = total_days
+                # A lower total than what's already been used would otherwise
+                # drive remaining_days (total_days - used_days) negative.
+                balance.used_days = min(cast(float, balance.used_days), total_days)
             else:
                 db.add(
                     VacationBalance(
@@ -648,12 +651,20 @@ async def approve_extraction(
 
     await db.commit()
 
+    warning = (
+        f"No employees found in department {department!r} — "
+        "this policy will only apply to employees added from now on."
+        if updated == 0
+        else None
+    )
+
     return ApproveExtractionResponse(
         extraction_id=cast(int, extraction.id),
         document_id=document_id,
         department=department,
         year=body.year,
         employees_updated=updated,
+        warning=warning,
     )
 
 
