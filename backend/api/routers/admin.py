@@ -200,6 +200,28 @@ async def pre_create_employee(
             detail="An employee with this email already exists",
         )
 
+    # Require an approved HR policy for the department before adding anyone
+    # to it, so the employee's vacation balance is always backed by a real
+    # policy document instead of silently falling back to company defaults.
+    has_approved_policy = await db.scalar(
+        select(DocumentExtraction.id)
+        .join(Document, Document.id == DocumentExtraction.document_id)
+        .where(
+            Document.department == body.department,
+            DocumentExtraction.status == "approved",
+        )
+        .limit(1)
+    )
+    if has_approved_policy is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                f"No approved HR policy found for the {body.department!r} "
+                "department. Upload and approve a policy document for this "
+                "department before adding employees to it."
+            ),
+        )
+
     emp = Employee(
         clerk_user_id=None,
         name=body.name,
