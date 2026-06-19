@@ -3,7 +3,7 @@
 from datetime import date, datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 DEPARTMENT_VALUES = Literal[
     "engineering", "sales", "marketing", "hr", "finance", "operations", "other"
@@ -146,11 +146,25 @@ class DocumentExtractionResponse(BaseModel):
 
 
 class ApproveExtractionBody(BaseModel):
-    vacation_days: float | None = Field(None, ge=0)
-    sick_days: float | None = Field(None, ge=0)
-    pto_days: float | None = Field(None, ge=0)
+    # 365 is a sanity bound (annual leave can't exceed a year), not a tunable —
+    # mirrors the same bound rag/extract.py applies to the raw LLM output.
+    vacation_days: float | None = Field(None, ge=0, le=365)
+    sick_days: float | None = Field(None, ge=0, le=365)
+    pto_days: float | None = Field(None, ge=0, le=365)
     notes: str = ""
     year: int = Field(..., ge=2000, le=2100)
+
+    @model_validator(mode="after")
+    def _require_at_least_one_leave_field(self) -> "ApproveExtractionBody":
+        if (
+            self.vacation_days is None
+            and self.sick_days is None
+            and self.pto_days is None
+        ):
+            raise ValueError(
+                "At least one of vacation_days, sick_days, or pto_days must be set."
+            )
+        return self
 
 
 class ApproveExtractionResponse(BaseModel):

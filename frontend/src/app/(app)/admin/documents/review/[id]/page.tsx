@@ -72,8 +72,13 @@ export default function DocumentReviewPage() {
           vacation_days: source.vacation_days ?? "",
         }));
       }
-    } catch {
-      // no extraction yet — fine
+    } catch (err) {
+      // The backend returns a null body (not an error) when no extraction
+      // exists yet, so reaching here means a real failure (network, auth, a
+      // missing document) — surface it instead of treating it as "no data".
+      setError(
+        err instanceof Error ? err.message : "Failed to load extraction.",
+      );
     } finally {
       setLoading(false);
     }
@@ -241,6 +246,7 @@ export default function DocumentReviewPage() {
                             ? "border-amber-400 dark:border-amber-600"
                             : "border-border"
                         }`}
+                        max="365"
                         min="0"
                         onChange={(e) =>
                           setForm((prev) => ({

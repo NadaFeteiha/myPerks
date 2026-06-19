@@ -9,7 +9,8 @@ employee's dashboard balance reflects the change immediately.
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime
+from collections import defaultdict
+from datetime import UTC, date, datetime
 from math import ceil
 from typing import cast
 
@@ -749,67 +750,59 @@ async def get_department_policies(
 @router.get(
     "/departments/balances",
     response_model=DepartmentBalancesResponse,
-    summary="Current vacation balances aggregated per department",
+    summary="Vacation balances aggregated per department for a given year",
 )
 async def get_department_balances(
     year: int | None = None,
     db: AsyncSession = Depends(get_session),  # noqa: B008
     _admin: Employee = Depends(require_admin),  # noqa: B008
 ) -> DepartmentBalancesResponse:
-    from datetime import date as _date
+    target_year = year or date.today().year
 
-    target_year = year or _date.today().year
-
-    # Read canonical policy values from the latest approved extraction per department.
-    # approved_data is the source of truth — do not derive policy totals from
-    # VacationBalance rows, which may include manually adjusted individual values.
-    policy_rows = (
+    # Derive balances from VacationBalance rows for the requested year, not from
+    # DocumentExtraction.approved_data — that row is 1:1 with the document and
+    # gets overwritten on every re-approval, so it has no year dimension and
+    # can't answer "what was approved for year X" once a later year exists.
+    # VacationBalance rows, by contrast, are written per-year by approve_extraction
+    # and never overwritten across years, so they're the only source that's
+    # actually scoped to `target_year`.
+    rows = (
         await db.execute(
-            select(Document.department, DocumentExtraction.approved_data)
-            .join(Document, Document.id == DocumentExtraction.document_id)
-            .where(DocumentExtraction.status == "approved")
-            .order_by(Document.department, DocumentExtraction.reviewed_at.desc())
+            select(
+                Employee.department,
+                VacationBalance.leave_type,
+                VacationBalance.employee_id,
+                VacationBalance.total_days,
+            )
+            .join(VacationBalance, VacationBalance.employee_id == Employee.id)
+            .where(VacationBalance.year == target_year)
         )
     ).all()
 
-    dept_policy: dict[str, dict[str, object]] = {}
-    for row in policy_rows:
-        dept = cast(str, row.department)
-        if dept not in dept_policy:
-            raw: dict[str, object] = (
-                json.loads(cast(str, row.approved_data)) if row.approved_data else {}
-            )
-            dept_policy[dept] = raw
-
-    if not dept_policy:
+    if not rows:
         return DepartmentBalancesResponse(year=target_year, departments=[])
 
-    count_rows = (
-        await db.execute(
-            select(Employee.department, func.count(Employee.id).label("employee_count"))
-            .where(Employee.department.in_(list(dept_policy.keys())))
-            .group_by(Employee.department)
-        )
-    ).all()
-    emp_counts = {
-        cast(str, r.department): cast(int, r.employee_count) for r in count_rows
-    }
+    dept_employees: dict[str, set[int]] = defaultdict(set)
+    dept_leave_totals: dict[str, dict[str, list[float]]] = defaultdict(
+        lambda: defaultdict(list)
+    )
+    for row in rows:
+        dept = cast(str, row.department)
+        dept_employees[dept].add(cast(int, row.employee_id))
+        dept_leave_totals[dept][row.leave_type].append(float(row.total_days))
 
-    def _f(v: object) -> float | None:
-        try:
-            return float(v) if v is not None else None  # type: ignore[arg-type]
-        except (TypeError, ValueError):
-            return None
+    def _avg(values: list[float]) -> float | None:
+        return sum(values) / len(values) if values else None
 
     departments = [
         DepartmentBalanceItem(
             department=dept,
-            employee_count=emp_counts.get(dept, 0),
-            vacation_days=_f(data.get("vacation_days")),
-            sick_days=_f(data.get("sick_days")),
-            pto_days=_f(data.get("pto_days")),
+            employee_count=len(dept_employees[dept]),
+            vacation_days=_avg(dept_leave_totals[dept].get("vacation", [])),
+            sick_days=_avg(dept_leave_totals[dept].get("sick", [])),
+            pto_days=_avg(dept_leave_totals[dept].get("pto", [])),
         )
-        for dept, data in sorted(dept_policy.items())
+        for dept in sorted(dept_employees)
     ]
 
     return DepartmentBalancesResponse(year=target_year, departments=departments)
