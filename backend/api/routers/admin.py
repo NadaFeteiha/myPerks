@@ -636,7 +636,7 @@ async def approve_extraction(
                 balance.total_days = total_days
                 # A lower total than what's already been used would otherwise
                 # drive remaining_days (total_days - used_days) negative.
-                balance.used_days = min(cast(float, balance.used_days), total_days)
+                balance.used_days = min(balance.used_days, total_days)
             else:
                 db.add(
                     VacationBalance(
