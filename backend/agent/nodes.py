@@ -9,6 +9,7 @@ Flow:
     5. responder_node — combine all context and produce the final answer
 """
 
+import asyncio
 import json
 import logging
 import re
@@ -19,6 +20,12 @@ from typing import Any, Literal, cast
 import holidays as _holidays
 from langchain_core.messages import AIMessage, SystemMessage
 from langchain_openai import ChatOpenAI
+from openai import (
+    APIConnectionError,
+    APITimeoutError,
+    InternalServerError,
+    RateLimitError,
+)
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
@@ -188,6 +195,16 @@ async def _find_leave_conflict(
 # LLM and embedding model instances
 # ---------------------------------------------------------------------------
 
+# Worth retrying: transient network/server-side failures. NOT worth retrying:
+# a malformed-output validation error from the LLM's own response — that will
+# fail identically every time and just burns latency and API cost.
+_RETRYABLE_LLM_ERRORS = (
+    APIConnectionError,
+    APITimeoutError,
+    RateLimitError,
+    InternalServerError,
+)
+
 _llm = ChatOpenAI(
     model="gpt-4o",
     api_key=settings.openai_api_key,
@@ -319,10 +336,6 @@ class _RequestOutput(BaseModel):
     body: _RequestBody
     summary: str = Field(description="Brief human-readable summary of the request")
     is_complete: bool = Field(description="True if all required fields are present")
-    skip_reason: bool = Field(
-        False,
-        description="True if the user explicitly declined to provide a reason/description",
-    )
     clarification_question: str | None = Field(
         None,
         description="Question to ask the user when a required field is missing",
@@ -506,22 +519,27 @@ async def request_node(state: AgentState) -> dict[str, Any]:
             messages_for_llm.append({"role": "assistant", "content": str(msg.content)})
 
     try:
-        last_exc: Exception | None = None
+        max_attempts = 3
         result = None
-        for _attempt in range(3):
+        for attempt in range(max_attempts):
             try:
                 result = cast(
                     _RequestOutput,
                     await _request_runnable.ainvoke(messages_for_llm),
                 )
                 break
-            except Exception as exc:
-                last_exc = exc
+            except _RETRYABLE_LLM_ERRORS as exc:
                 logger.warning(
-                    "Request extraction attempt %d failed: %s", _attempt + 1, exc
+                    "Request extraction attempt %d/%d failed (retryable): %s",
+                    attempt + 1,
+                    max_attempts,
+                    exc,
                 )
+                if attempt == max_attempts - 1:
+                    raise
+                await asyncio.sleep(min(2**attempt, 4))  # 1s, 2s, capped at 4s
         if result is None:
-            raise last_exc or RuntimeError("Request extraction failed after retries")
+            raise RuntimeError("Request extraction failed after retries")
 
         logger.info(
             "Request extraction: type=%s is_complete=%s clarification=%r start=%s days=%s",
