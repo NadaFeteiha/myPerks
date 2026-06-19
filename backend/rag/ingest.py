@@ -137,10 +137,9 @@ async def ingest_pdf(
     embeddings_client = OpenAIEmbeddings(  # type: ignore[call-arg]
         model=EMBEDDING_MODEL,
         api_key=settings.openai_api_key,
+        dimensions=1536,  # match Vector(1536) in DocumentChunk
         max_retries=3,
     )
-
-    # aembed_documents handles batching internally.
     vectors = await embeddings_client.aembed_documents(
         [text for text, _, _ in chunk_data]
     )
