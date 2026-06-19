@@ -25,7 +25,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.auth import require_admin
-from db.models import Document, Employee, department_enum
+from db.models import Document, DocumentExtraction, Employee, department_enum
 from db.session import get_session
 from rag.ingest import ingest_pdf
 
@@ -73,6 +73,7 @@ class DocumentResponse(BaseModel):
     filename: str
     uploaded_at: datetime
     department: str
+    extraction_status: str | None = None
 
 
 class DocumentListResponse(BaseModel):
@@ -221,19 +222,26 @@ async def list_documents(
     Returns all uploaded documents, ordered newest-first.
     Restricted to HR admins.
     """
-    result = await session.execute(
-        select(Document).order_by(Document.uploaded_at.desc())
-    )
-    documents = result.scalars().all()
+    rows = (
+        await session.execute(
+            select(Document, DocumentExtraction.status.label("extraction_status"))
+            .outerjoin(
+                DocumentExtraction,
+                DocumentExtraction.document_id == Document.id,
+            )
+            .order_by(Document.uploaded_at.desc())
+        )
+    ).all()
 
     return DocumentListResponse(
         documents=[
             DocumentResponse(
-                id=int(doc.id),
-                filename=str(doc.filename),
-                uploaded_at=doc.uploaded_at,
-                department=str(doc.department),
+                id=int(row.Document.id),
+                filename=str(row.Document.filename),
+                uploaded_at=row.Document.uploaded_at,
+                department=str(row.Document.department),
+                extraction_status=row.extraction_status,
             )
-            for doc in documents
+            for row in rows
         ]
     )
