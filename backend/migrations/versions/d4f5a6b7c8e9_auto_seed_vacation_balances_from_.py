@@ -44,7 +44,8 @@ def upgrade() -> None:
             ORDER BY de.reviewed_at DESC
             LIMIT 1;
 
-            INSERT INTO vacation_balances (employee_id, leave_type, total_days, used_days, year)
+            INSERT INTO vacation_balances
+                (employee_id, leave_type, total_days, used_days, year)
             VALUES
                 (p_employee_id, 'vacation',
                  COALESCE((policy->>'vacation_days')::numeric, 15), 0, p_year),
@@ -101,7 +102,10 @@ def downgrade() -> None:
     op.execute(
         "DROP TRIGGER IF EXISTS seed_vacation_balances_on_employee_insert ON employees"
     )
-    op.execute("DROP FUNCTION IF EXISTS trg_seed_vacation_balances_on_employee_insert()")
     op.execute(
-        "DROP FUNCTION IF EXISTS seed_employee_vacation_balances(INTEGER, department, INTEGER)"
+        "DROP FUNCTION IF EXISTS trg_seed_vacation_balances_on_employee_insert()"
+    )
+    op.execute(
+        "DROP FUNCTION IF EXISTS "
+        "seed_employee_vacation_balances(INTEGER, department, INTEGER)"
     )
