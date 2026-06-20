@@ -423,8 +423,11 @@ async def rag_node(state: AgentState) -> dict[str, Any]:
     """
     question = _last_human_message(state)
     try:
+        department: str = state["department"]
         async with AsyncSessionLocal() as db:
-            chunks = await search_chunks(query=question, session=db, top_k=5)
+            chunks = await search_chunks(
+                query=question, session=db, department=department, top_k=5
+            )
 
         if not chunks:
             return {"rag_context": ""}

@@ -13,15 +13,16 @@ from dataclasses import dataclass
 from langchain_openai import OpenAIEmbeddings
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import contains_eager
 
-from db import DocumentChunk
-from rag.ingest import EMBEDDING_MODEL
+from db import Document, DocumentChunk
+from rag.ingest import EMBEDDING_DIMENSIONS, EMBEDDING_MODEL
 from settings import settings
 
 _embeddings = OpenAIEmbeddings(  # type: ignore[call-arg]
     model=EMBEDDING_MODEL,
     api_key=settings.openai_api_key,
+    dimensions=EMBEDDING_DIMENSIONS,
     max_retries=3,
 )
 
@@ -38,12 +39,18 @@ class ChunkResult:
 
 
 async def search_chunks(
-    query: str, session: AsyncSession, top_k: int = 5
+    query: str,
+    session: AsyncSession,
+    department: str,
+    top_k: int = 5,
 ) -> list[ChunkResult]:
     """
     Embed ``query`` and return the ``top_k`` most relevant chunks by cosine
-    distance.  Returns a plain dataclass list so callers never touch ORM
-    internals after the session closes.
+    distance, restricted to documents belonging to ``department``.
+
+    The filter is pushed into the JOIN + WHERE so pgvector ranks only the
+    rows visible to the requesting employee.  ``contains_eager`` reuses the
+    already-joined Document data so no second SELECT is issued.
 
     Used by the LangGraph RAG node — call this, then pass the results to the
     synthesiser as grounding context.
@@ -52,10 +59,14 @@ async def search_chunks(
 
     stmt = (
         select(DocumentChunk)
-        .where(DocumentChunk.embedding.isnot(None))
+        .join(DocumentChunk.document)
+        .where(
+            DocumentChunk.embedding.isnot(None),
+            Document.department == department,
+        )
         .order_by(DocumentChunk.embedding.cosine_distance(query_vector))
         .limit(top_k)
-        .options(selectinload(DocumentChunk.document))
+        .options(contains_eager(DocumentChunk.document))
     )
     chunks = list(await session.scalars(stmt))
 

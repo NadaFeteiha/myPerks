@@ -11,6 +11,8 @@ class AgentState(TypedDict):
     Fields
     ------
     employee_id      : The logged-in employee's database ID.
+    department       : The employee's department (e.g. "engineering"). Passed to
+                       search_chunks so RAG retrieval is scoped to that department.
     messages         : Full chat history. LangGraph merges new messages automatically
                         (via `add_messages`).
     intent           : What the router decided the user needs, e.g. ["rag", "db"].
@@ -27,6 +29,7 @@ class AgentState(TypedDict):
     """
 
     employee_id: int
+    department: str
     messages: Annotated[list[BaseMessage], add_messages]
     intent: list[str]
     rag_context: str

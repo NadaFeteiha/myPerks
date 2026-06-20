@@ -41,6 +41,7 @@ from settings import settings
 
 # ── Tunables ─────────────────────────────────────────────────────────────────
 EMBEDDING_MODEL = "text-embedding-3-small"
+EMBEDDING_DIMENSIONS = 1536  # must match Vector(1536) in DocumentChunk.embedding
 MAX_TOKENS = 500
 OVERLAP_TOKENS = 50
 _ENCODING = "cl100k_base"
@@ -137,10 +138,9 @@ async def ingest_pdf(
     embeddings_client = OpenAIEmbeddings(  # type: ignore[call-arg]
         model=EMBEDDING_MODEL,
         api_key=settings.openai_api_key,
+        dimensions=EMBEDDING_DIMENSIONS,
         max_retries=3,
     )
-
-    # aembed_documents handles batching internally.
     vectors = await embeddings_client.aembed_documents(
         [text for text, _, _ in chunk_data]
     )
