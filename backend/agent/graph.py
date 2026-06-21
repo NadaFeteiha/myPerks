@@ -155,7 +155,11 @@ async def run_agent(
         employee = (
             await db.execute(select(Employee).where(Employee.id == employee_id))
         ).scalar_one_or_none()
-        department: str = str(employee.department) if employee else "other"
+        if employee is None:
+            # employee_id comes from an authenticated session, so a missing row
+            # means a data/auth bug, not a normal case worth degrading silently.
+            raise ValueError(f"No employee found for employee_id={employee_id}")
+        department: str = str(employee.department)
 
     initial_state: AgentState = {
         "employee_id": employee_id,
