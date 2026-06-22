@@ -264,27 +264,36 @@ DATE PARSING RULES:
 - Always use current year ({year}) unless the date would be in the past.
 - Output dates as YYYY-MM-DD.
 
-For leave requests (vacation, sick, pto) — TWO steps only:
+For leave requests (vacation, sick, pto) — TWO-STEP flow:
 
   STEP 1 — start_date unknown:
     Set is_complete=false.
     If requested_days is known: clarification_question="When would you like to start your {{N}}-day leave?" (replace {{N}} with the actual number)
     If requested_days is also unknown: clarification_question="When would you like to start, and how many days do you need?"
 
-  STEP 2 — start_date known → COMPLETE immediately:
-    Set is_complete=true, clarification_question=null.
+  STEP 2 — start_date known, reason unknown:
+    If start_date IS known but reason is null AND the user has NOT explicitly declined \
+    (e.g. said "no reason", "none", "skip", "no") → is_complete=false,
+    clarification_question="Got it! Would you like to add a reason for this leave? (type 'skip' if not)"
     If the employee gave a number of days → set requested_days, leave end_date null.
     If the employee gave an end date → set end_date, leave requested_days null.
     If neither → leave both null (system defaults to 1 day).
-    Do NOT ask for a reason. Do NOT ask for an end date when requested_days is already known.
+    Do NOT ask for an end date when requested_days is already known.
 
-For reimbursement requests — TWO steps only:
+  COMPLETE — start_date known AND (reason provided OR user explicitly declined):
+    is_complete=true, skip_reason=true if user declined, clarification_question=null
+
+For reimbursement requests — TWO-STEP flow:
 
   STEP 1 — amount unknown:
     Set is_complete=false, clarification_question="How much would you like to claim?"
 
-  STEP 2 — amount known → COMPLETE immediately:
-    Set is_complete=true, clarification_question=null.
+  STEP 2 — amount known, description unknown:
+    If amount IS known but description is null AND user has NOT explicitly declined → is_complete=false,
+    clarification_question="What is this reimbursement for? (type 'skip' to leave blank)"
+
+  COMPLETE — amount known AND (description provided OR user explicitly declined):
+    is_complete=true, skip_reason=true if user declined, clarification_question=null
 
 Generate a short summary:
   "5 days vacation starting June 25"
@@ -336,6 +345,10 @@ class _RequestOutput(BaseModel):
     body: _RequestBody
     summary: str = Field(description="Brief human-readable summary of the request")
     is_complete: bool = Field(description="True if all required fields are present")
+    skip_reason: bool = Field(
+        False,
+        description="True if the user explicitly declined to provide a reason/description",
+    )
     clarification_question: str | None = Field(
         None,
         description="Question to ask the user when a required field is missing",
