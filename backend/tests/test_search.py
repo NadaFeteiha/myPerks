@@ -108,6 +108,24 @@ async def test_department_filter_in_where_clause() -> None:
 
 
 @pytest.mark.asyncio
+async def test_company_wide_all_included_in_where_clause() -> None:
+    """
+    Retrieval must match the employee's own department OR the company-wide
+    ``all`` tier (T39). The compiled WHERE clause must reference both values,
+    guarding against a regression back to a single-department ``==`` filter.
+    """
+    session, captured = _capture_session()
+
+    with patch("rag.search._embeddings", _mock_embeddings()):
+        await search_chunks(query="policy", session=session, department="marketing")
+
+    assert len(captured) == 1
+    sql = _where_sql(captured[0])
+    assert "marketing" in sql, f"Expected own department in WHERE: {sql}"
+    assert "all" in sql, f"Expected company-wide 'all' in WHERE: {sql}"
+
+
+@pytest.mark.asyncio
 async def test_search_chunks_only_returns_matching_department() -> None:
     """
     Only chunks from the requested department come back — a chunk from another
