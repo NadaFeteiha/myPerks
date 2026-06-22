@@ -9,6 +9,7 @@ Flow:
     5. responder_node — combine all context and produce the final answer
 """
 
+import asyncio
 import json
 import logging
 import re
@@ -19,6 +20,12 @@ from typing import Any, Literal, cast
 import holidays as _holidays
 from langchain_core.messages import AIMessage, SystemMessage
 from langchain_openai import ChatOpenAI
+from openai import (
+    APIConnectionError,
+    APITimeoutError,
+    InternalServerError,
+    RateLimitError,
+)
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
@@ -188,6 +195,16 @@ async def _find_leave_conflict(
 # LLM and embedding model instances
 # ---------------------------------------------------------------------------
 
+# Worth retrying: transient network/server-side failures. NOT worth retrying:
+# a malformed-output validation error from the LLM's own response — that will
+# fail identically every time and just burns latency and API cost.
+_RETRYABLE_LLM_ERRORS = (
+    APIConnectionError,
+    APITimeoutError,
+    RateLimitError,
+    InternalServerError,
+)
+
 _llm = ChatOpenAI(
     model="gpt-4o",
     api_key=settings.openai_api_key,
@@ -231,56 +248,45 @@ Guidelines:
 - Cite policy documents when quoting them (e.g. "According to the PTO Policy...").
 - If the intent includes "email", format your entire response as a complete, \
 ready-to-send professional email with Subject line, salutation, body, and sign-off.
-- If the intent includes "request", acknowledge the request warmly, confirm the key \
-details from the parsed summary in 1–2 sentences, and tell the employee to review the \
-confirmation card and click "Submit Request" to send it to HR, or "Cancel" to dismiss.
 - If context is empty or insufficient, say so honestly — never invent information.\
 """
 
 # Tells the LLM how to extract structured request details
 _REQUEST_PROMPT = """\
 You are an HR request parser for MyPerks. Extract the structured details of the \
-employee's HR request from the conversation so far.
+employee's HR request from the full conversation below.
 
 Today's date: {today}
 
-DATE PARSING RULES — apply these strictly:
-- "June 8" or "8 June"  → {year}-06-08  (use current year: {year})
-- Numeric dates use DAY/MONTH order: "8/6" or "8-6" → June 8 → {year}-06-08
-- If only a month/day is given with no year, always use {year}.
-- If the resulting date is in the past and the user seems to mean a future date, \
-  use next year instead.
-- Always output dates in YYYY-MM-DD format.
+DATE PARSING RULES:
+- "June 25" or "jun 25" → {year}-06-25
+- "25/6" or "25-6" → {year}-06-25 (DAY/MONTH order)
+- Always use current year ({year}) unless the date would be in the past.
+- Output dates as YYYY-MM-DD.
 
 For leave requests (vacation, sick, pto) — TWO-STEP flow:
 
-  STEP 1 — dates unknown:
-    If start_date cannot be determined:
-    - If requested_days IS already known (user said e.g. "19 days off") →
-        clarification_question="What date would you like your {{N}}-day leave to start?"
-        (replace {{N}} with the actual number)
-    - If requested_days is also unknown →
-        clarification_question="What date would you like to start, and how many days do you need?"
+  STEP 1 — start_date unknown:
+    Set is_complete=false.
+    If requested_days is known: clarification_question="When would you like to start your {{N}}-day leave?" (replace {{N}} with the actual number)
+    If requested_days is also unknown: clarification_question="When would you like to start, and how many days do you need?"
 
-  STEP 2 — dates known, reason/description unknown:
+  STEP 2 — start_date known, reason unknown:
     If start_date IS known but reason is null AND the user has NOT explicitly declined \
     (e.g. said "no reason", "none", "skip", "no") → is_complete=false,
     clarification_question="Got it! Would you like to add a reason for this leave? (type 'skip' if not)"
+    If the employee gave a number of days → set requested_days, leave end_date null.
+    If the employee gave an end date → set end_date, leave requested_days null.
+    If neither → leave both null (system defaults to 1 day).
+    Do NOT ask for an end date when requested_days is already known.
 
-  COMPLETE — dates known AND (reason provided OR user explicitly declined):
+  COMPLETE — start_date known AND (reason provided OR user explicitly declined):
     is_complete=true, skip_reason=true if user declined, clarification_question=null
-
-  Date extraction rules:
-  - If the employee gave an explicit end date → set end_date; leave requested_days null.
-  - If the employee gave a number of days → set requested_days; leave end_date null.
-  - If neither → leave both null (defaults to 1 day).
-  - Do NOT calculate days — the system handles calendar arithmetic.
 
 For reimbursement requests — TWO-STEP flow:
 
   STEP 1 — amount unknown:
-    If amount cannot be determined → is_complete=false,
-    clarification_question="How much would you like to claim?"
+    Set is_complete=false, clarification_question="How much would you like to claim?"
 
   STEP 2 — amount known, description unknown:
     If amount IS known but description is null AND user has NOT explicitly declined → is_complete=false,
@@ -289,12 +295,10 @@ For reimbursement requests — TWO-STEP flow:
   COMPLETE — amount known AND (description provided OR user explicitly declined):
     is_complete=true, skip_reason=true if user declined, clarification_question=null
 
-If all required fields are present, set is_complete=true and clarification_question=null.
-
-Generate a concise summary such as:
-  "3 days vacation from June 5–7 for a family trip"
-  "1-day sick leave on June 5"
-  "$200 reimbursement for conference registration fee"\
+Generate a short summary:
+  "5 days vacation starting June 25"
+  "3-day sick leave from June 10"
+  "$200 reimbursement"\
 """
 
 # ---------------------------------------------------------------------------
@@ -405,6 +409,7 @@ async def router_node(state: AgentState) -> dict[str, Any]:
             for i in result.intent
             if i in ("rag", "db", "email", "request", "cancel_request")
         ]
+        logger.info("Router intent: %s", intent)
     except Exception:
         logger.exception("Router failed — defaulting to rag")
         intent = ["rag"]
@@ -527,9 +532,35 @@ async def request_node(state: AgentState) -> dict[str, Any]:
             messages_for_llm.append({"role": "assistant", "content": str(msg.content)})
 
     try:
-        result = cast(
-            _RequestOutput,
-            await _request_runnable.ainvoke(messages_for_llm),
+        max_attempts = 3
+        result = None
+        for attempt in range(max_attempts):
+            try:
+                result = cast(
+                    _RequestOutput,
+                    await _request_runnable.ainvoke(messages_for_llm),
+                )
+                break
+            except _RETRYABLE_LLM_ERRORS as exc:
+                logger.warning(
+                    "Request extraction attempt %d/%d failed (retryable): %s",
+                    attempt + 1,
+                    max_attempts,
+                    exc,
+                )
+                if attempt == max_attempts - 1:
+                    raise
+                await asyncio.sleep(min(2**attempt, 4))  # 1s, 2s, capped at 4s
+        if result is None:
+            raise RuntimeError("Request extraction failed after retries")
+
+        logger.info(
+            "Request extraction: type=%s is_complete=%s clarification=%r start=%s days=%s",
+            result.type,
+            result.is_complete,
+            result.clarification_question,
+            result.body.start_date,
+            result.body.requested_days,
         )
 
         if not result.is_complete:
@@ -540,6 +571,17 @@ async def request_node(state: AgentState) -> dict[str, Any]:
 
         body = result.body
         today = now.date()
+
+        # Guard: leave requests must have a start date — LLMs sometimes mark
+        # is_complete=True prematurely when only day-count was given.
+        if result.type in ("vacation", "sick", "pto") and not body.start_date:
+            days = body.requested_days
+            question = (
+                f"What date would you like your {days}-day {result.type} leave to start?"
+                if days
+                else "What date would you like your leave to start, and how many days do you need?"
+            )
+            return {"pending_request": None, "clarification_question": question}
 
         # Validate and enrich leave-request dates in Python
         if body.start_date:
@@ -799,6 +841,17 @@ async def responder_node(state: AgentState) -> dict[str, Any]:
 
     # Request flow: bypass the "ONLY the context below" constraint entirely so the
     # LLM doesn't refuse when RAG/DB context is empty.
+    if "request" in intent and not clarification_question and not pending_request:
+        # request_node failed to extract details — ask for start date directly
+        prompt = (
+            "You are MyPerks, a friendly HR assistant. "
+            f'The employee said: "{question}". '
+            "They want to submit a leave request. Ask them in one short sentence: "
+            "when would they like their leave to start?"
+        )
+        response = await _llm.ainvoke([{"role": "user", "content": prompt}])
+        return {"messages": [AIMessage(content=str(response.content))]}
+
     if "request" in intent and (clarification_question or pending_request):
         if clarification_question:
             prompt = (
