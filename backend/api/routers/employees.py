@@ -100,13 +100,22 @@ async def register_me(
             select(Employee).where(Employee.clerk_user_id == clerk_user_id)
         )
 
-        # Also check by email — same person may have a new Clerk account
+        # Also check by email — HR may have pre-created this row (clerk_user_id
+        # still null), or the same person may have a new Clerk account.
         if existing is None:
             existing = await session.scalar(
                 select(Employee).where(Employee.email == body.email)
             )
             if existing is not None:
-                # Re-link the existing row to the current Clerk user ID
+                # Only link a row that nobody has claimed yet. If this email is
+                # already linked to a different Clerk account, refuse rather than
+                # silently re-point the row — that would hijack their record.
+                if existing.clerk_user_id is not None:
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail="This email is already linked to another account",
+                    )
+                # Re-link the pre-created row to the current Clerk user ID
                 existing.clerk_user_id = clerk_user_id
                 await session.commit()
                 await session.refresh(existing)

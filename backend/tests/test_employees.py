@@ -1,5 +1,3 @@
-# backend/tests/test_employees.py
-
 import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -166,3 +164,26 @@ class TestRegisterMe:
         assert data["role"] == "employee"
         assert data["joined_date"] == "2022-03-01"
         assert data["benefits_year_reset"] == "2027-01-01"
+
+    def test_does_not_relink_email_owned_by_another_account(self) -> None:
+        # Email matches a row already linked to a DIFFERENT Clerk user, the
+        # link must not be overwritten (no hijack), and nothing is committed.
+        other = _make_employee(clerk_user_id="clerk_user_999")
+        session = _make_session([None, other])
+
+        app.dependency_overrides[get_current_user] = _fake_get_current_user
+        try:
+            with patch("api.routers.employees.AsyncSessionLocal", return_value=session):
+                response = client.post(
+                    "/employees/me",
+                    json={
+                        "name": "Alice Johnson",
+                        "email": "alice.johnson@myperks.dev",
+                    },
+                    headers=AUTH_HEADER,
+                )
+        finally:
+            app.dependency_overrides.clear()
+
+        assert response.status_code == 409
+        session.commit.assert_not_awaited()
