@@ -23,6 +23,8 @@ from settings import settings
 
 logger = logging.getLogger(__name__)
 
+_MAX_ANNUAL_DAYS = 365  # sanity bound for vacation/sick/pto day counts
+
 _SYSTEM_PROMPT = """\
 You are an HR policy analyst. You will be given text extracted from an HR document.
 Extract the following information and return it as valid JSON with these exact keys:
@@ -109,18 +111,42 @@ async def extract_document_policy(
             else:
                 raise ValueError(f"LLM returned non-JSON: {raw[:200]}") from None
 
-        def _float_or_none(v: object) -> float | None:
+        rejected_fields: list[str] = []
+
+        def _days_or_none(field: str, v: object) -> float | None:
             try:
-                return float(v) if v is not None else None  # type: ignore[arg-type]
+                value = float(v) if v is not None else None  # type: ignore[arg-type]
             except (TypeError, ValueError):
                 return None
+            # Annual leave days can't be negative or exceed a year — an LLM
+            # hallucination here would otherwise flow straight into HR's
+            # review queue looking like a plausible real value.
+            if value is not None and not (0 <= value <= _MAX_ANNUAL_DAYS):
+                rejected_fields.append(field)
+                return None
+            return value
 
         extracted: dict[str, object] = {
-            "vacation_days": _float_or_none(parsed.get("vacation_days")),
-            "sick_days": _float_or_none(parsed.get("sick_days")),
-            "pto_days": _float_or_none(parsed.get("pto_days")),
+            "vacation_days": _days_or_none(
+                "vacation_days", parsed.get("vacation_days")
+            ),
+            "sick_days": _days_or_none("sick_days", parsed.get("sick_days")),
+            "pto_days": _days_or_none("pto_days", parsed.get("pto_days")),
             "notes": str(parsed.get("notes", ""))[:300],
         }
+
+        if rejected_fields:
+            # Surface the rejection to the HR reviewer instead of silently
+            # leaving the field blank with no explanation.
+            extracted["notes"] = (
+                f"[needs manual review: {', '.join(rejected_fields)} out of range "
+                f"in source document] {extracted['notes']}"
+            )[:300]
+            logger.warning(
+                "Rejected out-of-range fields for document_id=%d: %s",
+                document_id,
+                rejected_fields,
+            )
 
         extraction.extracted_data = json.dumps(extracted)  # type: ignore[assignment]
         extraction.status = "extracted"

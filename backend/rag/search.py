@@ -16,12 +16,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import contains_eager
 
 from db import Document, DocumentChunk
-from rag.ingest import EMBEDDING_MODEL
+from rag.ingest import EMBEDDING_DIMENSIONS, EMBEDDING_MODEL
 from settings import settings
 
 _embeddings = OpenAIEmbeddings(  # type: ignore[call-arg]
     model=EMBEDDING_MODEL,
     api_key=settings.openai_api_key,
+    dimensions=EMBEDDING_DIMENSIONS,
     max_retries=3,
 )
 

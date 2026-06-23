@@ -39,7 +39,7 @@ def upgrade() -> None:
         """
         CREATE TABLE IF NOT EXISTS document_extractions (
             id              SERIAL PRIMARY KEY,
-            document_id     INTEGER NOT NULL UNIQUE
+            document_id     INTEGER NOT NULL
                                 REFERENCES documents(id) ON DELETE CASCADE,
             status          extraction_status NOT NULL DEFAULT 'pending',
             extracted_data  TEXT,

@@ -9,6 +9,7 @@ Flow:
     5. responder_node — combine all context and produce the final answer
 """
 
+import asyncio
 import json
 import logging
 import re
@@ -19,6 +20,12 @@ from typing import Any, Literal, cast
 import holidays as _holidays
 from langchain_core.messages import AIMessage, SystemMessage
 from langchain_openai import ChatOpenAI
+from openai import (
+    APIConnectionError,
+    APITimeoutError,
+    InternalServerError,
+    RateLimitError,
+)
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
@@ -188,6 +195,16 @@ async def _find_leave_conflict(
 # LLM and embedding model instances
 # ---------------------------------------------------------------------------
 
+# Worth retrying: transient network/server-side failures. NOT worth retrying:
+# a malformed-output validation error from the LLM's own response — that will
+# fail identically every time and just burns latency and API cost.
+_RETRYABLE_LLM_ERRORS = (
+    APIConnectionError,
+    APITimeoutError,
+    RateLimitError,
+    InternalServerError,
+)
+
 _llm = ChatOpenAI(
     model="gpt-4o",
     api_key=settings.openai_api_key,
@@ -254,20 +271,29 @@ For leave requests (vacation, sick, pto) — TWO steps only:
     If requested_days is known: clarification_question="When would you like to start your {{N}}-day leave?" (replace {{N}} with the actual number)
     If requested_days is also unknown: clarification_question="When would you like to start, and how many days do you need?"
 
-  STEP 2 — start_date known → COMPLETE immediately:
-    Set is_complete=true, clarification_question=null.
+  STEP 2 — start_date known, reason unknown:
+    If start_date IS known but reason is null AND the user has NOT explicitly declined \
+    (e.g. said "no reason", "none", "skip", "no") → is_complete=false,
+    clarification_question="Got it! Would you like to add a reason for this leave? (type 'skip' if not)"
     If the employee gave a number of days → set requested_days, leave end_date null.
     If the employee gave an end date → set end_date, leave requested_days null.
     If neither → leave both null (system defaults to 1 day).
-    Do NOT ask for a reason. Do NOT ask for an end date when requested_days is already known.
+    Do NOT ask for an end date when requested_days is already known.
 
-For reimbursement requests — TWO steps only:
+  COMPLETE — start_date known AND (reason provided OR user explicitly declined):
+    is_complete=true, skip_reason=true if user declined, clarification_question=null
+
+For reimbursement requests — TWO-STEP flow:
 
   STEP 1 — amount unknown:
     Set is_complete=false, clarification_question="How much would you like to claim?"
 
-  STEP 2 — amount known → COMPLETE immediately:
-    Set is_complete=true, clarification_question=null.
+  STEP 2 — amount known, description unknown:
+    If amount IS known but description is null AND user has NOT explicitly declined → is_complete=false,
+    clarification_question="What is this reimbursement for? (type 'skip' to leave blank)"
+
+  COMPLETE — amount known AND (description provided OR user explicitly declined):
+    is_complete=true, skip_reason=true if user declined, clarification_question=null
 
 Generate a short summary:
   "5 days vacation starting June 25"
@@ -506,22 +532,27 @@ async def request_node(state: AgentState) -> dict[str, Any]:
             messages_for_llm.append({"role": "assistant", "content": str(msg.content)})
 
     try:
-        last_exc: Exception | None = None
+        max_attempts = 3
         result = None
-        for _attempt in range(3):
+        for attempt in range(max_attempts):
             try:
                 result = cast(
                     _RequestOutput,
                     await _request_runnable.ainvoke(messages_for_llm),
                 )
                 break
-            except Exception as exc:
-                last_exc = exc
+            except _RETRYABLE_LLM_ERRORS as exc:
                 logger.warning(
-                    "Request extraction attempt %d failed: %s", _attempt + 1, exc
+                    "Request extraction attempt %d/%d failed (retryable): %s",
+                    attempt + 1,
+                    max_attempts,
+                    exc,
                 )
+                if attempt == max_attempts - 1:
+                    raise
+                await asyncio.sleep(min(2**attempt, 4))  # 1s, 2s, capped at 4s
         if result is None:
-            raise last_exc or RuntimeError("Request extraction failed after retries")
+            raise RuntimeError("Request extraction failed after retries")
 
         logger.info(
             "Request extraction: type=%s is_complete=%s clarification=%r start=%s days=%s",
