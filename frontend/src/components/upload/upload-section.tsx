@@ -7,6 +7,7 @@ import React, { useEffect, useState } from "react";
 import { useUploadThing } from "@/lib/uploadthing";
 
 const DEPARTMENTS = [
+  "all",
   "engineering",
   "finance",
   "hr",
@@ -130,7 +131,7 @@ export function UploadSection({ onUploadComplete }: UploadSectionProps) {
         >
           {DEPARTMENTS.map((d) => (
             <option key={d} value={d}>
-              {d.charAt(0).toUpperCase() + d.slice(1)}
+              {departmentLabel(d)}
             </option>
           ))}
         </select>
@@ -170,6 +171,12 @@ export function UploadSection({ onUploadComplete }: UploadSectionProps) {
       {error && <p className="mt-3 text-[12px] text-red-500">{error}</p>}
     </div>
   );
+}
+
+// "all" is the company-wide tier (T39); the rest capitalise from the value.
+function departmentLabel(d: Department): string {
+  if (d === "all") return "All departments";
+  return d.charAt(0).toUpperCase() + d.slice(1);
 }
 
 function stateLabel(state: UploadState): string {

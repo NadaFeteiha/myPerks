@@ -229,6 +229,24 @@ class TestPreCreateEmployee:
 
         assert response.status_code == 422
 
+    def test_department_all_rejected_422(self) -> None:
+        # "all" is a valid DB enum value (T39, document-only) but must never be
+        # accepted for an employee. Guards against widening DEPARTMENT_VALUES.
+        mock_session = make_session(scalar_return=make_admin_employee())
+
+        app.dependency_overrides[get_current_user] = override_auth
+        app.dependency_overrides[get_session] = make_db_override(mock_session)
+        try:
+            response = client.post(
+                "/admin/employees",
+                json={**VALID_PRE_CREATE_BODY, "department": "all"},
+                headers=auth_header(),
+            )
+        finally:
+            app.dependency_overrides.clear()
+
+        assert response.status_code == 422
+
     def test_employee_role_returns_403(self) -> None:
         mock_session = make_session(scalar_return=make_non_admin_employee())
 
@@ -348,6 +366,23 @@ class TestPatchEmployee:
             response = client.patch(
                 "/admin/employees/10",
                 json={"department": "invalid_dept"},
+                headers=auth_header(),
+            )
+        finally:
+            app.dependency_overrides.clear()
+
+        assert response.status_code == 422
+
+    def test_department_all_rejected_422(self) -> None:
+        # "all" is document-only (T39); an employee can't be patched to it.
+        mock_session = make_session(scalar_return=make_admin_employee())
+
+        app.dependency_overrides[get_current_user] = override_auth
+        app.dependency_overrides[get_session] = make_db_override(mock_session)
+        try:
+            response = client.patch(
+                "/admin/employees/10",
+                json={"department": "all"},
                 headers=auth_header(),
             )
         finally:
