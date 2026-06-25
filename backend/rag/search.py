@@ -46,11 +46,14 @@ async def search_chunks(
 ) -> list[ChunkResult]:
     """
     Embed ``query`` and return the ``top_k`` most relevant chunks by cosine
-    distance, restricted to documents belonging to ``department``.
+    distance, restricted to documents the employee can see: their own
+    ``department`` plus company-wide (``all``) documents.
 
     The filter is pushed into the JOIN + WHERE so pgvector ranks only the
-    rows visible to the requesting employee.  ``contains_eager`` reuses the
-    already-joined Document data so no second SELECT is issued.
+    rows visible to the requesting employee: documents in their own
+    ``department`` plus company-wide documents tagged ``all`` (T39).
+    ``contains_eager`` reuses the already-joined Document data so no second
+    SELECT is issued.
 
     Used by the LangGraph RAG node — call this, then pass the results to the
     synthesiser as grounding context.
@@ -62,7 +65,7 @@ async def search_chunks(
         .join(DocumentChunk.document)
         .where(
             DocumentChunk.embedding.isnot(None),
-            Document.department == department,
+            Document.department.in_([department, "all"]),
         )
         .order_by(DocumentChunk.embedding.cosine_distance(query_vector))
         .limit(top_k)

@@ -46,6 +46,11 @@ department_enum = Enum(
     "finance",
     "operations",
     "other",
+    # Document-only scope value (T39): a document tagged "all" is company-wide
+    # and reaches every department in RAG retrieval. Never a valid value for
+    # employees.department — that is gated at the app layer (the schema Literals
+    # in api/schemas/admin.py and the DEPARTMENTS set in routers/employees.py).
+    "all",
     name="department",
 )
 
@@ -170,8 +175,9 @@ class Document(Base):
     uploaded_at = Column(
         DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC)
     )
-    # Every document belongs to exactly one department (no company-wide tier).
-    # Drives department-scoped RAG retrieval (T28). Reuses the shared enum.
+    # A document belongs to one department, or to the company-wide "all" tier
+    # (T39). Drives department-scoped RAG retrieval (T28): an employee sees
+    # their own department plus "all". Reuses the shared enum.
     department: Mapped[str] = mapped_column(department_enum, nullable=False)
 
     uploader = relationship("Employee", back_populates="documents")
