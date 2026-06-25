@@ -1,7 +1,7 @@
 """auto-seed vacation balances from approved department policy
 
 Revision ID: d4f5a6b7c8e9
-Revises: c8e1f2a3b4d5
+Revises: d2960e3966d6
 Create Date: 2026-06-18 00:00:00.000000
 
 Whenever an employee row is inserted (HR pre-create, employee self-registration,
@@ -20,7 +20,7 @@ from collections.abc import Sequence
 from alembic import op
 
 revision: str = "d4f5a6b7c8e9"
-down_revision: str | None = "c8e1f2a3b4d5"
+down_revision: str | None = "d2960e3966d6"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
