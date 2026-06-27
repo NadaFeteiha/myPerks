@@ -14,6 +14,7 @@ export interface AdminEmployeeDetail {
   joined_date: string;
   linked: boolean;
   name: string;
+  request_history: RequestHistoryItem[];
   role: string;
 }
 
