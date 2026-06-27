@@ -3,7 +3,7 @@
 from datetime import date, datetime
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, model_validator
 
 DEPARTMENT_VALUES = Literal[
     "engineering", "sales", "marketing", "hr", "finance", "operations", "other"
@@ -123,3 +123,81 @@ class PaginatedRequests(BaseModel):
     page: int
     size: int
     pages: int
+
+
+# ── Document extraction schemas ──────────────────────────────────────────────
+
+
+class ExtractionData(BaseModel):
+    vacation_days: float | None = None
+    sick_days: float | None = None
+    pto_days: float | None = None
+    notes: str = ""
+
+
+class DocumentExtractionResponse(BaseModel):
+    id: int
+    document_id: int
+    status: str
+    extracted_data: ExtractionData | None = None
+    approved_data: ExtractionData | None = None
+    reviewed_at: datetime | None = None
+    error_message: str | None = None
+
+
+class ApproveExtractionBody(BaseModel):
+    # 365 is a sanity bound (annual leave can't exceed a year), not a tunable —
+    # mirrors the same bound rag/extract.py applies to the raw LLM output.
+    vacation_days: float | None = Field(None, ge=0, le=365)
+    sick_days: float | None = Field(None, ge=0, le=365)
+    pto_days: float | None = Field(None, ge=0, le=365)
+    notes: str = ""
+    year: int = Field(..., ge=2000, le=2100)
+
+    @model_validator(mode="after")
+    def _require_at_least_one_leave_field(self) -> "ApproveExtractionBody":
+        if (
+            self.vacation_days is None
+            and self.sick_days is None
+            and self.pto_days is None
+        ):
+            raise ValueError(
+                "At least one of vacation_days, sick_days, or pto_days must be set."
+            )
+        return self
+
+
+class ApproveExtractionResponse(BaseModel):
+    extraction_id: int
+    document_id: int
+    department: str
+    year: int
+    employees_updated: int
+    warning: str | None = None
+
+
+class DepartmentPolicyItem(BaseModel):
+    department: str
+    document_id: int
+    vacation_days: float | None
+    sick_days: float | None
+    pto_days: float | None
+    notes: str
+    approved_at: datetime
+
+
+class DepartmentPoliciesResponse(BaseModel):
+    policies: list[DepartmentPolicyItem]
+
+
+class DepartmentBalanceItem(BaseModel):
+    department: str
+    employee_count: int
+    vacation_days: float | None
+    sick_days: float | None
+    pto_days: float | None
+
+
+class DepartmentBalancesResponse(BaseModel):
+    year: int
+    departments: list[DepartmentBalanceItem]

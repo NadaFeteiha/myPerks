@@ -61,6 +61,33 @@ export interface BenefitSummaryItem {
   used_days: number;
 }
 
+export interface DepartmentBalanceItem {
+  department: string;
+  employee_count: number;
+  pto_days: null | number;
+  sick_days: null | number;
+  vacation_days: null | number;
+}
+
+export interface DepartmentBalancesResponse {
+  departments: DepartmentBalanceItem[];
+  year: number;
+}
+
+export interface DepartmentPoliciesResponse {
+  policies: DepartmentPolicyItem[];
+}
+
+export interface DepartmentPolicyItem {
+  approved_at: string;
+  department: string;
+  document_id: number;
+  notes: string;
+  pto_days: null | number;
+  sick_days: null | number;
+  vacation_days: null | number;
+}
+
 export interface LeaveBalance {
   leave_type: string;
   remaining_days: number;
@@ -162,6 +189,12 @@ export const api = {
   },
   getBenefitsSummary: () =>
     apiFetch<BenefitsSummaryResponse>("/me/benefits-summary"),
+  getDepartmentBalances: (year?: number) =>
+    apiFetch<DepartmentBalancesResponse>(
+      `/admin/departments/balances${year ? `?year=${year}` : ""}`,
+    ),
+  getDepartmentPolicies: () =>
+    apiFetch<DepartmentPoliciesResponse>("/admin/departments/policies"),
   getMe: () => apiFetch<OnboardResponse>("/employees/me"),
   getRequestHistory: (page = 1, pageSize = 10) =>
     apiFetch<RequestHistoryResponse>(

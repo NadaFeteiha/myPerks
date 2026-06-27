@@ -3,7 +3,8 @@
 import { DocumentRow } from "./document-row";
 
 type Document = {
-  department?: string; // make optional
+  department?: string;
+  extraction_status?: null | string;
   filename: string;
   id: number;
   uploaded_at: string;
@@ -22,7 +23,6 @@ export function DocumentListSection({ documents }: DocumentListSectionProps) {
     );
   }
 
-  // Group by department, preserving insertion order of first appearance.
   const grouped = documents.reduce<Record<string, Document[]>>((acc, doc) => {
     const key = doc.department ?? "other";
     (acc[key] ??= []).push(doc);
@@ -42,7 +42,9 @@ export function DocumentListSection({ documents }: DocumentListSectionProps) {
             {grouped[dept]!.map((doc) => (
               <DocumentRow
                 department={doc.department}
+                extraction_status={doc.extraction_status}
                 filename={doc.filename}
+                id={doc.id}
                 key={doc.id}
                 uploaded_at={doc.uploaded_at}
               />

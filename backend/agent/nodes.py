@@ -264,7 +264,7 @@ DATE PARSING RULES:
 - Always use current year ({year}) unless the date would be in the past.
 - Output dates as YYYY-MM-DD.
 
-For leave requests (vacation, sick, pto) — TWO-STEP flow:
+For leave requests (vacation, sick, pto) — TWO steps only:
 
   STEP 1 — start_date unknown:
     Set is_complete=false.

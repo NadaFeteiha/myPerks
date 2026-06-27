@@ -8,6 +8,7 @@ import { useApi } from "@/lib/api.client";
 
 type Document = {
   department: string;
+  extraction_status: null | string;
   filename: string;
   id: number;
   uploaded_at: string;
@@ -58,35 +59,38 @@ export default function AdminDocumentsPage() {
   }, [api]);
 
   return (
-    <div className="mx-auto max-w-2xl space-y-8 p-6">
-      <div>
-        <h1 className="text-lg font-semibold text-foreground">
-          Document Management
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Upload HR documents and assign them to a department for RAG retrieval.
-        </p>
+    <div className="h-full overflow-y-auto">
+      <div className="mx-auto max-w-2xl space-y-8 p-6">
+        <div>
+          <h1 className="text-lg font-semibold text-foreground">
+            Document Management
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Upload HR documents and assign them to a department for RAG
+            retrieval.
+          </p>
+        </div>
+
+        <section>
+          <h2 className="mb-3 text-[13px] font-semibold text-foreground">
+            Upload Document
+          </h2>
+          <UploadSection onUploadComplete={() => void fetchDocuments()} />
+        </section>
+
+        <section>
+          <h2 className="mb-3 text-[13px] font-semibold text-foreground">
+            Uploaded Documents
+          </h2>
+          {loading ? (
+            <p className="text-[12px] text-muted-foreground">Loading...</p>
+          ) : error ? (
+            <p className="text-[12px] text-red-500">{error}</p>
+          ) : (
+            <DocumentListSection documents={documents} />
+          )}
+        </section>
       </div>
-
-      <section>
-        <h2 className="mb-3 text-[13px] font-semibold text-foreground">
-          Upload Document
-        </h2>
-        <UploadSection onUploadComplete={() => void fetchDocuments()} />
-      </section>
-
-      <section>
-        <h2 className="mb-3 text-[13px] font-semibold text-foreground">
-          Uploaded Documents
-        </h2>
-        {loading ? (
-          <p className="text-[12px] text-muted-foreground">Loading...</p>
-        ) : error ? (
-          <p className="text-[12px] text-red-500">{error}</p>
-        ) : (
-          <DocumentListSection documents={documents} />
-        )}
-      </section>
     </div>
   );
 }
