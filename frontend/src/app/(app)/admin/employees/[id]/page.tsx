@@ -2,6 +2,7 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { EditEmployeeDialog } from "@/components/admin/edit-employee-dialog";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { api } from "@/lib/api.server";
 import {
@@ -57,17 +58,26 @@ export default async function AdminEmployeeDetailPage({
         </div>
       ) : (
         <>
-          <h1 className="text-xl font-semibold">{employee.name}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {employee.email} · {formatDepartment(employee.department)} ·{" "}
-            {employee.role === "hr_admin" ? "HR Admin" : "Employee"}
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Joined {formatIsoDate(employee.joined_date)} · Benefits year resets{" "}
-            {formatIsoDate(employee.benefits_year_reset)} ·{" "}
-            {employee.linked ? "Linked to Clerk" : "Not yet linked"}
-          </p>
-
+          <div className="mb-6 flex items-start justify-between">
+            <div>
+              <h1 className="text-xl font-semibold">{employee.name}</h1>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {employee.email} · {formatDepartment(employee.department)} ·{" "}
+                {employee.role === "hr_admin" ? "HR Admin" : "Employee"}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Joined {formatIsoDate(employee.joined_date)} · Benefits year
+                resets {formatIsoDate(employee.benefits_year_reset)} ·{" "}
+                {employee.linked ? "Linked to Clerk" : "Not yet linked"}
+              </p>
+            </div>
+            <EditEmployeeDialog
+              currentDepartment={employee.department}
+              currentRole={employee.role}
+              employeeId={employee.id}
+              employeeName={employee.name}
+            />
+          </div>
           <p className="mb-3 mt-6 text-[10px] font-semibold uppercase tracking-[0.07em] text-muted-foreground">
             Leave balances
           </p>

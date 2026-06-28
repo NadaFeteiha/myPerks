@@ -14,6 +14,7 @@ export interface AdminEmployeeDetail {
   joined_date: string;
   linked: boolean;
   name: string;
+  request_history: RequestHistoryItem[];
   role: string;
 }
 
@@ -89,6 +90,19 @@ export interface OnboardResponse {
   joined_date: string;
   name: null | string;
   role: "employee" | "hr_admin";
+}
+
+export interface PatchEmployeeBody {
+  department?: string;
+  role?: string;
+}
+
+export interface PreCreateEmployeeBody {
+  benefits_year_reset: string; // ISO date e.g. "2026-01-01"
+  department: string;
+  email: string;
+  joined_date: string; // ISO date e.g. "2025-06-27"
+  name: string;
 }
 
 export interface RequestHistoryItem {
@@ -199,6 +213,10 @@ export function useApi() {
       getMe: () => apiGet<OnboardResponse>("/employees/me"),
       onboard: (body: OnboardRequest) =>
         apiPost<OnboardResponse>("/employees/me", body),
+      patchEmployee: (id: number, body: PatchEmployeeBody) =>
+        apiPatch<AdminEmployeeDetail>(`/admin/employees/${id}`, body),
+      preCreateEmployee: (body: PreCreateEmployeeBody) =>
+        apiPost<AdminEmployeeDetail>("/admin/employees", body),
       triggerExtraction: (documentId: number) =>
         apiPost<DocumentExtractionResponse>(
           `/admin/documents/${documentId}/extract`,
