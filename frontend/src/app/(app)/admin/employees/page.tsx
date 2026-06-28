@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { EmployeeSearch } from "@/components/admin/employee-search";
+import { PreCreateEmployeeDialog } from "@/components/admin/pre-create-employee-dialog";
 import { Pagination } from "@/components/shared/pagination";
 import { type AdminEmployeeListItem, api } from "@/lib/api.server";
 import { formatDepartment, formatIsoDate } from "@/lib/format";
@@ -36,10 +37,15 @@ export default async function AdminEmployeesPage({
 
   return (
     <div className="flex-1 overflow-y-auto p-6">
-      <h1 className="mb-1 text-xl font-semibold">Employees</h1>
-      <p className="mb-6 text-sm text-muted-foreground">
-        All employees with their department and role.
-      </p>
+      <div className="mb-6 flex items-start justify-between">
+        <div>
+          <h1 className="mb-1 text-xl font-semibold">Employees</h1>
+          <p className="text-sm text-muted-foreground">
+            All employees with their department and role.
+          </p>
+        </div>
+        <PreCreateEmployeeDialog />
+      </div>
 
       <EmployeeSearch initialQuery={query} />
 
