@@ -76,9 +76,7 @@ export interface ExtractionData {
 }
 
 export interface OnboardRequest {
-  department?: string;
   email: string;
-  name: string;
 }
 
 export interface OnboardResponse {

@@ -6,29 +6,16 @@ from typing import cast
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
 
 from api.auth import get_current_user
-from db.models import Employee, VacationBalance
+from db.models import Employee
 from db.session import AsyncSessionLocal
 
 router = APIRouter(prefix="/employees", tags=["employees"])
 
-DEPARTMENTS = {
-    "engineering",
-    "sales",
-    "marketing",
-    "hr",
-    "finance",
-    "operations",
-    "other",
-}
-
 
 class RegisterRequest(BaseModel):
-    name: str
     email: str
-    department: str | None = None
 
 
 class EmployeeResponse(BaseModel):
@@ -82,127 +69,66 @@ async def get_me(
     "/me",
     response_model=EmployeeResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="Register the current employee",
+    summary="Link the current Clerk user to a pre-created employee record",
 )
 async def register_me(
     body: RegisterRequest,
     clerk_user_id: str = Depends(get_current_user),  # noqa: B008
 ) -> EmployeeResponse:
     """
-    Creates a new Employee row for the authenticated Clerk user.
-    Email is supplied in the request body (no JWT template required).
-    Also seeds default vacation balances for the current year.
-    Returns 409 if the employee already exists.
+    Links the authenticated Clerk user to an Employee row that HR pre-created
+    (clerk_user_id still null), matched by email. Employees are never created
+    here — HR provisions them via POST /admin/employees or the seed, and the
+    T42 trigger seeds their balances on insert.
+
+    Returns 409 if this Clerk user is already linked, or if the email is
+    already linked to a different account. Returns 403 if no pre-created
+    record exists for the email.
     """
     async with AsyncSessionLocal() as session:
-        # Check by clerk_user_id first
+        # Already linked to this Clerk user?
         existing = await session.scalar(
             select(Employee).where(Employee.clerk_user_id == clerk_user_id)
         )
-
-        # Also check by email — HR may have pre-created this row (clerk_user_id
-        # still null), or the same person may have a new Clerk account.
-        if existing is None:
-            existing = await session.scalar(
-                select(Employee).where(Employee.email == body.email)
-            )
-            if existing is not None:
-                # Only link a row that nobody has claimed yet. If this email is
-                # already linked to a different Clerk account, refuse rather than
-                # silently re-point the row — that would hijack their record.
-                if existing.clerk_user_id is not None:
-                    raise HTTPException(
-                        status_code=status.HTTP_409_CONFLICT,
-                        detail="This email is already linked to another account",
-                    )
-                # Re-link the pre-created row to the current Clerk user ID
-                existing.clerk_user_id = clerk_user_id
-                await session.commit()
-                await session.refresh(existing)
-                return EmployeeResponse(
-                    id=cast(int, existing.id),
-                    clerk_user_id=clerk_user_id,
-                    name=cast(str, existing.name),
-                    email=cast(str, existing.email),
-                    department=cast("str | None", existing.department),
-                    role=existing.role,
-                    joined_date=existing.joined_date,
-                    benefits_year_reset=existing.benefits_year_reset,
-                )
-
         if existing is not None:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Employee already exists",
             )
 
-        # department is optional in the onboarding form, but the column is a
-        # NOT NULL Postgres enum — fall back to "other" rather than crashing.
-        department = (body.department or "other").strip().lower()
-        if department not in DEPARTMENTS:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=f"Invalid department: {body.department!r}",
-            )
-
-        today = datetime.date.today()
-        employee = Employee(
-            clerk_user_id=clerk_user_id,
-            name=body.name,
-            email=body.email,
-            department=department,
-            joined_date=today,
-            # Benefits year resets each Jan 1 (T37 hero banner).
-            benefits_year_reset=datetime.date(today.year + 1, 1, 1),
+        # Match a row HR pre-created, by email.
+        existing = await session.scalar(
+            select(Employee).where(Employee.email == body.email)
         )
-        session.add(employee)
-
-        try:
-            await session.flush()
-        except IntegrityError as exc:
-            await session.rollback()
+        if existing is None:
+            # No HR-provisioned record for this email. Do not self-create —
+            # the employee must be added by HR first.
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=(
+                    "No employee record found for this email. "
+                    "Contact your HR admin to be added."
+                ),
+            )
+        if existing.clerk_user_id is not None:
+            # Email already claimed by a different Clerk account. Refuse rather
+            # than re-point the row (no hijack).
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="Employee already exists",
-            ) from exc
+                detail="This email is already linked to another account",
+            )
 
-        current_year = datetime.datetime.now().year
-        eid = employee.id
-        session.add_all(
-            [
-                VacationBalance(
-                    employee_id=eid,
-                    leave_type="vacation",
-                    total_days=15.0,
-                    used_days=0.0,
-                    year=current_year,
-                ),
-                VacationBalance(
-                    employee_id=eid,
-                    leave_type="sick",
-                    total_days=10.0,
-                    used_days=0.0,
-                    year=current_year,
-                ),
-                VacationBalance(
-                    employee_id=eid,
-                    leave_type="pto",
-                    total_days=5.0,
-                    used_days=0.0,
-                    year=current_year,
-                ),
-            ]
-        )
+        # Link the pre-created row to the current Clerk user.
+        existing.clerk_user_id = clerk_user_id
         await session.commit()
-        await session.refresh(employee)
-
-    return EmployeeResponse(
-        id=cast(int, employee.id),
-        clerk_user_id=cast(str, employee.clerk_user_id),
-        name=cast(str, employee.name),
-        email=cast(str, employee.email),
-        department=cast("str | None", employee.department),
-        role=employee.role,
-        joined_date=employee.joined_date,
-        benefits_year_reset=employee.benefits_year_reset,
-    )
+        await session.refresh(existing)
+        return EmployeeResponse(
+            id=cast(int, existing.id),
+            clerk_user_id=clerk_user_id,
+            name=cast(str, existing.name),
+            email=cast(str, existing.email),
+            department=cast("str | None", existing.department),
+            role=existing.role,
+            joined_date=existing.joined_date,
+            benefits_year_reset=existing.benefits_year_reset,
+        )
