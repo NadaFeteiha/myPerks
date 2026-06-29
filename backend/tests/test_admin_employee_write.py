@@ -233,9 +233,7 @@ class TestPreCreateEmployee:
         # First db.scalar() call is require_admin's lookup, second is the
         # approved-policy check — must return admin then None, in that order.
         mock_session = make_session(scalar_return=None)
-        mock_session.scalar = AsyncMock(
-            side_effect=[make_admin_employee(), None]
-        )
+        mock_session.scalar = AsyncMock(side_effect=[make_admin_employee(), None])
         # execute() for duplicate-email check returns None (no existing row)
         mock_session.execute = AsyncMock(return_value=make_scalar_one_result(None))
 
